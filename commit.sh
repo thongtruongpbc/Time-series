@@ -1,57 +1,57 @@
 #!/bin/bash
 
-echo "🚀 Đang bắt đầu quá trình đồng bộ các folder lên các nhánh riêng..."
+echo "🚀 Đang bắt đầu quá trình đồng bộ..."
 cd ~/mnt/thongtx || exit
 
+# 1. Khởi tạo Git nếu chưa có
 if [ ! -d .git ]; then
     git init
-    echo "✅ Đã khởi tạo Git."
 fi
 
-if ! git remote | grep -q "origin"; then
-    git remote add origin https://github.com/thongtruongpbc/Time-series.git
-else
-    git remote set-url origin https://github.com/thongtruongpbc/Time-series.git
-fi
+# 2. Cấu hình Remote
+git remote add origin https://github.com/thongtruongpbc/Time-series.git 2>/dev/null
+git remote set-url origin https://github.com/thongtruongpbc/Time-series.git
 
+# 3. Xử lý triệt để lỗi "Embedded Git"
+# Xóa file .git con
 find . -mindepth 2 -name ".git" -type d -not -path "./.git/*" -exec rm -rf {} +
 
-if [ -d "datasets" ]; then
-    git rm -r --cached datasets/ 2>/dev/null
-    echo "🚫 Đã bỏ qua thư mục datasets."
-fi
+# QUAN TRỌNG: Xóa Index cũ để Git nhận diện lại các folder con là folder thường
+git rm -r --cached . >/dev/null 2>&1
 
-# 5. Add và commit ở nhánh chính
+# 4. Add lại từ đầu (trừ datasets)
 git add .
+# Loại bỏ datasets khỏi commit này một cách thủ công để chắc chắn
+git reset HEAD datasets/ 2>/dev/null
+
+# 5. Commit
 if ! git diff-index --quiet HEAD --; then
-    git commit -m "Auto-sync backup: $(date +'%Y-%m-%d %H:%M:%S')"
+    git commit -m "Fix subtree & Auto-sync: $(date +'%Y-%m-%d %H:%M:%S')"
 else
-    echo "✨ Không có thay đổi mới ở local."
+    echo "✨ Không có thay đổi mới."
 fi
 
-# 6. Duyệt qua các folder để tách nhánh
+# 6. Duyệt qua các folder
 for dir in */; do
     branch_name="${dir%/}"
     
-    # Bỏ qua các folder không muốn push
     if [[ "$branch_name" == "node_modules" || "$branch_name" == ".git" || "$branch_name" == "datasets" ]]; then
         continue
     fi
 
     echo "------------------------------------------"
-    echo "📁 Đang xử lý thư mục: $branch_name"
+    echo "📁 Đang xử lý nhánh: $branch_name"
     
-    # Tách nhánh bằng subtree và push
-    # Lấy ID của commit tree sau khi split
-    TREE_ID=$(git subtree split --prefix="$branch_name" 2>/dev/null)
+    # Ép buộc tạo lại subtree split để tránh dùng cache cũ lỗi
+    TREE_ID=$(git subtree split --prefix="$branch_name")
 
     if [ -n "$TREE_ID" ]; then
         git push origin "$TREE_ID":refs/heads/"$branch_name" --force
-        echo "✅ Đã push thành công lên nhánh: $branch_name"
+        echo "✅ Đã push thành công: $branch_name"
     else
-        echo "❌ Lỗi: Không thể tách subtree cho $branch_name (có thể folder trống hoặc lỗi git)"
+        echo "❌ Lỗi: Vẫn không thể tách subtree cho $branch_name."
     fi
 done
 
 echo "------------------------------------------"
-echo "🎉 Hoàn thành tất cả!"
+echo "🎉 Hoàn thành!"
