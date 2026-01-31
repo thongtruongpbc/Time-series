@@ -1,37 +1,25 @@
 #!/bin/bash
 
-echo "🚀 Đang bắt đầu quá trình đồng bộ..."
+echo "🚀 Đang đồng bộ bằng phương pháp Manual Push (Không dùng subtree)..."
 cd ~/mnt/thongtx || exit
 
-# 1. Khởi tạo Git nếu chưa có
-if [ ! -d .git ]; then
-    git init
-fi
-
-# 2. Cấu hình Remote
+# 1. Khởi tạo Git & Remote
+[ ! -d .git ] && git init
 git remote add origin https://github.com/thongtruongpbc/Time-series.git 2>/dev/null
 git remote set-url origin https://github.com/thongtruongpbc/Time-series.git
 
-# 3. Xử lý triệt để lỗi "Embedded Git"
-# Xóa file .git con
+# 2. Xóa sạch vết tích Git con
 find . -mindepth 2 -name ".git" -type d -not -path "./.git/*" -exec rm -rf {} +
-
-# QUAN TRỌNG: Xóa Index cũ để Git nhận diện lại các folder con là folder thường
 git rm -r --cached . >/dev/null 2>&1
 
-# 4. Add lại từ đầu (trừ datasets)
+# 3. Add và Commit
 git add .
-# Loại bỏ datasets khỏi commit này một cách thủ công để chắc chắn
 git reset HEAD datasets/ 2>/dev/null
-
-# 5. Commit
 if ! git diff-index --quiet HEAD --; then
-    git commit -m "Fix subtree & Auto-sync: $(date +'%Y-%m-%d %H:%M:%S')"
-else
-    echo "✨ Không có thay đổi mới."
+    git commit -m "Sync: $(date +'%Y-%m-%d %H:%M:%S')"
 fi
 
-# 6. Duyệt qua các folder
+# 4. Duyệt qua các folder
 for dir in */; do
     branch_name="${dir%/}"
     
@@ -40,18 +28,29 @@ for dir in */; do
     fi
 
     echo "------------------------------------------"
-    echo "📁 Đang xử lý nhánh: $branch_name"
-    
-    # Ép buộc tạo lại subtree split để tránh dùng cache cũ lỗi
-    TREE_ID=$(git subtree split --prefix="$branch_name")
+    echo "📁 Đang xử lý: $branch_name"
 
-    if [ -n "$TREE_ID" ]; then
-        git push origin "$TREE_ID":refs/heads/"$branch_name" --force
+    # CHIẾN THUẬT: Tạo một index tạm thời để tạo commit chỉ cho folder đó
+    # Đây là cách Git thực hiện subtree ở cấp độ thấp
+    export GIT_INDEX_FILE=".git/index.temp"
+    rm -f "$GIT_INDEX_FILE"
+    
+    # Đọc nội dung folder vào index tạm
+    SUBTREE_ID=$(git ls-tree -d HEAD "$branch_name" | awk '{print $3}')
+    
+    if [ -n "$SUBTREE_ID" ]; then
+        # Tạo một commit object mới từ folder này
+        NEW_COMMIT=$(echo "Push folder $branch_name" | git commit-tree "$SUBTREE_ID")
+        
+        # Push commit đó lên nhánh tương ứng
+        git push origin "$NEW_COMMIT":refs/heads/"$branch_name" --force
         echo "✅ Đã push thành công: $branch_name"
     else
-        echo "❌ Lỗi: Vẫn không thể tách subtree cho $branch_name."
+        echo "❌ Lỗi: Không thể tìm thấy dữ liệu cho $branch_name"
     fi
+
+    rm -f "$GIT_INDEX_FILE"
+    unset GIT_INDEX_FILE
 done
 
-echo "------------------------------------------"
-echo "🎉 Hoàn thành!"
+echo "🎉 Xong!"
