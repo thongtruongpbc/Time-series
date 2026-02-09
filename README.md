@@ -40,7 +40,11 @@
    Each dataset requires training an estimation model first to guide anomaly masking.  
    For example, you can train a DLinear estimation model on the ETTh1 dataset as shown in `train_est_model` of the [demo](demo.py), and the logs and checkpoints will be saved under `project_root_path/checkpoints/DLinear/`.
 
-4. **Train the Main Model with Selective Learning**  
+4. **Train the Main Model with Selective Learning**
+      ```bash
+	python demo.py
+	```
+
    BasicTS now natively supports **Selective Learning**.  
    You can simply add the `SelectiveLearning` callback in your configuration to enable selective learning during training.
    ```python
