@@ -24,23 +24,26 @@
 
 ## 🛠️ Usage
 
-1. **Environment and Dependencies**  
+1. **Environment and Dependencies**
+   Clone repo:
+   git clone -b selective-learning https://github.com/thongtruongpbc/Time-series.git
    This project is built upon the [BasicTS](https://github.com/GestaltCogTeam/BasicTS) time series benchmarking library.  
    Download the package with version ≥ 1.0.0 from [this release link](https://github.com/GestaltCogTeam/BasicTS/releases/tag/v1.0.0) and install it with pip.
+
    ```bash
 	pip install basicts-1.0-py3-none-any.whl
 	```
    (or pip install -r requirments.txt)
 
-2. **Prepare Datasets**  
+3. **Prepare Datasets**  
    All datasets used in the paper are natively supported in BasicTS.  
    Please refer to the [dataset documentation](https://github.com/GestaltCogTeam/BasicTS/blob/master/docs/dataset_design_cn.md) for instructions on downloading and using them.  
 
-3. **Train the Estimation Model**  
+4. **Train the Estimation Model**  
    Each dataset requires training an estimation model first to guide anomaly masking.  
    For example, you can train a DLinear estimation model on the ETTh1 dataset as shown in `train_est_model` of the [demo](demo.py), and the logs and checkpoints will be saved under `project_root_path/checkpoints/DLinear/`.
 
-4. **Train the Main Model with Selective Learning**
+5. **Train the Main Model with Selective Learning**
       ```bash
 	python demo.py
 	```
