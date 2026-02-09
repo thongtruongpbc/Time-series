@@ -25,8 +25,11 @@
 ## 🛠️ Usage
 
 1. **Environment and Dependencies**
+   
    Clone repo:
+   ```bash
    git clone -b selective-learning https://github.com/thongtruongpbc/Time-series.git
+   	```
    This project is built upon the [BasicTS](https://github.com/GestaltCogTeam/BasicTS) time series benchmarking library.  
    Download the package with version ≥ 1.0.0 from [this release link](https://github.com/GestaltCogTeam/BasicTS/releases/tag/v1.0.0) and install it with pip.
 
