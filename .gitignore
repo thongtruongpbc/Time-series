@@ -166,3 +166,9 @@ result_anomaly_detection.txt
 scripts/augmentation/
 run_anylearn.py
 environment.txt
+
+datasets/
+*.npy
+*.pkl
+*.dat
+baseline_thuml/
