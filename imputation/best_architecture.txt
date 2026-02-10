@@ -1,0 +1,49 @@
+
+Top 1:
+def imputation_retrieval(self, x_enc, x_mark_enc, reference, x_dec, x_mark_dec, mask, training=1):
+        x_enc = self.revin(x_enc, mode='norm', mask=None)
+        enc_out = self.enc_embedding(x_enc, x_mark_enc)
+        enc_out, attns = self.encoder(enc_out, attn_mask=None)
+        # dec_out = self.projection(enc_out)
+        B, top_k, T, C = reference.shape
+        reference = reference.view(B * top_k, T, C)
+        reference = self.ref_revin(reference, mode='norm', mask=None)
+        reference = self.enc_embedding(reference, x_mark_enc)
+        reference, ref_attns = self.ref_encoder(reference, attn_mask=None)
+
+        x_inp = torch.cat([enc_out, reference], dim=1)
+
+        # x_inp = self.cross_embedding(x_inp)
+        attn_output, attn_output_weights = self.multihead_attn(query=x_inp, key=x_inp, value=x_inp)
+        #attn_output, attn_output_weights = self.encoder(x_inp, attn_mask=None)
+        x_inp = self.attn_norm(x_inp + attn_output)
+        x_inp = self.ffn_norm(x_inp + self.ffn(x_inp))
+
+        output = self.projection(x_inp[:, :T, :])
+        output = self.revin(output, mode='denorm', mask=mask)
+        return output
+
+
+Top-2:
+"""
+def imputation_retrieval(self, x_enc, x_mark_enc, reference, x_dec, x_mark_dec, mask, training=1):
+        x_enc = self.revin(x_enc, mode='norm', mask=None)
+        enc_out = self.enc_embedding(x_enc, x_mark_enc)
+        enc_out, attns = self.encoder(enc_out, attn_mask=None)
+        # dec_out = self.projection(enc_out)
+        B, top_k, T, C = reference.shape
+        reference = reference.view(B * top_k, T, C)
+        reference = self.ref_revin(reference, mode='norm', mask=None)
+        reference = self.enc_embedding(reference, x_mark_enc)
+        x_inp = torch.cat([enc_out, reference], dim=1)
+
+        # x_inp = self.cross_embedding(x_inp)
+        attn_output, attn_output_weights = self.multihead_attn(query=x_inp, key=x_inp, value=x_inp)
+        #attn_output, attn_output_weights = self.encoder(x_inp, attn_mask=None)
+        x_inp = self.attn_norm(x_inp + attn_output)
+        x_inp = self.ffn_norm(x_inp + self.ffn(x_inp))
+
+        output = self.projection(x_inp[:, :T, :])
+        output = self.revin(output, mode='denorm', mask=mask)
+        return output
+"""

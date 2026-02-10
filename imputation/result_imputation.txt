@@ -1,0 +1,15 @@
+ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0  
+mse:0.05063129588961601, mae:0.1528978794813156
+
+ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0  
+mse:0.05063129588961601, mae:0.1528978794813156
+
+ETTh1_mask_0.25_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0  
+mse:0.06940960884094238, mae:0.18188531696796417
+
+ETTh1_mask_0.375_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0  
+mse:0.1000710278749466, mae:0.22280199825763702
+
+ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0  
+mse:0.1456427127122879, mae:0.2750574052333832
+
