@@ -3,7 +3,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from layers.Embed import DataEmbedding, DataEmbedding_wo_pos
 from layers.AutoCorrelation import AutoCorrelation, AutoCorrelationLayer
-from layers.Autoformer_EncDec import Encoder, Decoder, EncoderLayer, DecoderLayer, my_Layernorm, series_decomp
+from layers.Autoformer_EncDec import (
+    Encoder,
+    Decoder,
+    EncoderLayer,
+    DecoderLayer,
+    my_Layernorm,
+    series_decomp,
+)
 import math
 import numpy as np
 
@@ -30,40 +37,72 @@ class Model(nn.Module):
         self.decomp = series_decomp(kernel_size)
 
         # Embedding
-        self.enc_embedding = DataEmbedding_wo_pos(configs.enc_in, configs.d_model, configs.embed, configs.freq,
-                                                  configs.dropout)
+        self.enc_embedding = DataEmbedding_wo_pos(
+            configs.enc_in,
+            configs.d_model,
+            configs.embed,
+            configs.freq,
+            configs.dropout,
+        )
         # Encoder
         self.encoder = Encoder(
             [
                 EncoderLayer(
                     AutoCorrelationLayer(
-                        AutoCorrelation(False, configs.factor, attention_dropout=configs.dropout,
-                                        output_attention=False),
-                        configs.d_model, configs.n_heads),
+                        AutoCorrelation(
+                            False,
+                            configs.factor,
+                            attention_dropout=configs.dropout,
+                            output_attention=False,
+                        ),
+                        configs.d_model,
+                        configs.n_heads,
+                    ),
                     configs.d_model,
                     configs.d_ff,
                     moving_avg=configs.moving_avg,
                     dropout=configs.dropout,
-                    activation=configs.activation
-                ) for l in range(configs.e_layers)
+                    activation=configs.activation,
+                )
+                for l in range(configs.e_layers)
             ],
-            norm_layer=my_Layernorm(configs.d_model)
+            norm_layer=my_Layernorm(configs.d_model),
         )
         # Decoder
-        if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
-            self.dec_embedding = DataEmbedding_wo_pos(configs.dec_in, configs.d_model, configs.embed, configs.freq,
-                                                      configs.dropout)
+        if (
+            self.task_name == "long_term_forecast"
+            or self.task_name == "short_term_forecast"
+        ):
+            self.dec_embedding = DataEmbedding_wo_pos(
+                configs.dec_in,
+                configs.d_model,
+                configs.embed,
+                configs.freq,
+                configs.dropout,
+            )
             self.decoder = Decoder(
                 [
                     DecoderLayer(
                         AutoCorrelationLayer(
-                            AutoCorrelation(True, configs.factor, attention_dropout=configs.dropout,
-                                            output_attention=False),
-                            configs.d_model, configs.n_heads),
+                            AutoCorrelation(
+                                True,
+                                configs.factor,
+                                attention_dropout=configs.dropout,
+                                output_attention=False,
+                            ),
+                            configs.d_model,
+                            configs.n_heads,
+                        ),
                         AutoCorrelationLayer(
-                            AutoCorrelation(False, configs.factor, attention_dropout=configs.dropout,
-                                            output_attention=False),
-                            configs.d_model, configs.n_heads),
+                            AutoCorrelation(
+                                False,
+                                configs.factor,
+                                attention_dropout=configs.dropout,
+                                output_attention=False,
+                            ),
+                            configs.d_model,
+                            configs.n_heads,
+                        ),
                         configs.d_model,
                         configs.c_out,
                         configs.d_ff,
@@ -74,154 +113,167 @@ class Model(nn.Module):
                     for l in range(configs.d_layers)
                 ],
                 norm_layer=my_Layernorm(configs.d_model),
-                projection=nn.Linear(configs.d_model, configs.c_out, bias=True)
+                projection=nn.Linear(configs.d_model, configs.c_out, bias=True),
             )
-        if self.task_name == 'imputation':
-            self.projection = nn.Linear(
-                configs.d_model, configs.c_out, bias=True)
-            
-        if self.task_name == 'imputation_retrieval':
-            self.projection = nn.Linear(
-                configs.d_model, configs.c_out, bias=False)
+        if self.task_name == "imputation":
+            self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
+
+        if self.task_name == "imputation_retrieval":
+            self.projection = nn.Linear(configs.d_model, configs.c_out, bias=False)
             self.ref_projection = nn.Linear(configs.c_out, configs.c_out, bias=False)
-            self.ref_concat = nn.Linear(self.top_k * configs.c_out, configs.c_out, bias=False)
+            self.ref_concat = nn.Linear(
+                self.top_k * configs.c_out, configs.c_out, bias=False
+            )
             self.cond_embed = nn.Embedding(2, self.d_cond)
 
+            self.both = nn.Linear(
+                2 * configs.c_out + self.d_cond, configs.c_out, bias=False
+            )
 
-            self.both = nn.Linear(2 * configs.c_out + self.d_cond, configs.c_out, bias=False)
-
-            
-        if self.task_name == 'anomaly_detection':
-            self.projection = nn.Linear(
-                configs.d_model, configs.c_out, bias=True)
-        if self.task_name == 'classification':
+        if self.task_name == "anomaly_detection":
+            self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
+        if self.task_name == "classification":
             self.act = F.gelu
             self.dropout = nn.Dropout(configs.dropout)
             self.projection = nn.Linear(
-                configs.d_model * configs.seq_len, configs.num_class)
+                configs.d_model * configs.seq_len, configs.num_class
+            )
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         # decomp init
-        mean = torch.mean(x_enc, dim=1).unsqueeze(
-            1).repeat(1, self.pred_len, 1)
-        zeros = torch.zeros([x_dec.shape[0], self.pred_len,
-                             x_dec.shape[2]], device=x_enc.device)
+        mean = torch.mean(x_enc, dim=1).unsqueeze(1).repeat(1, self.pred_len, 1)
+        zeros = torch.zeros(
+            [x_dec.shape[0], self.pred_len, x_dec.shape[2]], device=x_enc.device
+        )
         seasonal_init, trend_init = self.decomp(x_enc)
         # decoder input
-        trend_init = torch.cat(
-            [trend_init[:, -self.label_len:, :], mean], dim=1)
+        trend_init = torch.cat([trend_init[:, -self.label_len :, :], mean], dim=1)
         seasonal_init = torch.cat(
-            [seasonal_init[:, -self.label_len:, :], zeros], dim=1)
+            [seasonal_init[:, -self.label_len :, :], zeros], dim=1
+        )
         # enc
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
         # dec
         dec_out = self.dec_embedding(seasonal_init, x_mark_dec)
-        seasonal_part, trend_part = self.decoder(dec_out, enc_out, x_mask=None, cross_mask=None,
-                                                 trend=trend_init)
+        seasonal_part, trend_part = self.decoder(
+            dec_out, enc_out, x_mask=None, cross_mask=None, trend=trend_init
+        )
         # final
         dec_out = trend_part + seasonal_part
         return dec_out
 
-    #def imputation_retrieval(self, x_enc, x_mark_enc, reference, x_dec, x_mark_dec, mask):
-        ### Visualization ###
-        # import matplotlib.pyplot as plt
-        # import numpy as np
-        # import sys
+    # def imputation_retrieval(self, x_enc, x_mark_enc, reference, x_dec, x_mark_dec, mask):
+    ### Visualization ###
+    # import matplotlib.pyplot as plt
+    # import numpy as np
+    # import sys
 
-        # b_idx, c_idx = 0, 0
-        # K = reference.shape[1]
-        
-        # orig_val = x_enc[b_idx, :, c_idx].detach().cpu().numpy()
-        # mask_val = mask[b_idx, :, c_idx].detach().cpu().numpy()
-        
-        # masked_val = orig_val.copy()
-        # masked_val[mask_val == 0] = np.nan 
+    # b_idx, c_idx = 0, 0
+    # K = reference.shape[1]
 
-        # plt.figure(figsize=(15, 7))
+    # orig_val = x_enc[b_idx, :, c_idx].detach().cpu().numpy()
+    # mask_val = mask[b_idx, :, c_idx].detach().cpu().numpy()
 
-        # colors = ['#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
-        # for k in range(min(K, 2)):
-        #     ref_k = reference[b_idx, k, :, c_idx].detach().cpu().numpy()
-        #     plt.plot(ref_k, color=colors[k], alpha=0.5, linewidth=1.2, label=f'Ref K={k}')
+    # masked_val = orig_val.copy()
+    # masked_val[mask_val == 0] = np.nan
 
-        # plt.plot(orig_val, color='#1f77b4', alpha=0.2, linewidth=1, label='Ground Truth')
-        # plt.plot(masked_val, color='#1f77b4', alpha=1.0, linewidth=2, label='Input')
+    # plt.figure(figsize=(15, 7))
 
-        # diff = np.diff(np.concatenate([[1], mask_val, [1]]))
-        # starts = np.where(diff == -1)[0]
-        # ends = np.where(diff == 1)[0]
-        # for s, e in zip(starts, ends):
-        #     plt.axvspan(s-0.5, e-0.5, color='gray', alpha=0.1)
+    # colors = ['#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+    # for k in range(min(K, 2)):
+    #     ref_k = reference[b_idx, k, :, c_idx].detach().cpu().numpy()
+    #     plt.plot(ref_k, color=colors[k], alpha=0.5, linewidth=1.2, label=f'Ref K={k}')
 
-        # plt.title(f"Check B:{b_idx} C:{c_idx} K:{K}")
-        # plt.legend()
-        # plt.savefig("imputation_debug.png")
-        # plt.close()
+    # plt.plot(orig_val, color='#1f77b4', alpha=0.2, linewidth=1, label='Ground Truth')
+    # plt.plot(masked_val, color='#1f77b4', alpha=1.0, linewidth=2, label='Input')
 
-        # sys.exit()
-        ### Kết thúc Visualization ###
+    # diff = np.diff(np.concatenate([[1], mask_val, [1]]))
+    # starts = np.where(diff == -1)[0]
+    # ends = np.where(diff == 1)[0]
+    # for s, e in zip(starts, ends):
+    #     plt.axvspan(s-0.5, e-0.5, color='gray', alpha=0.1)
 
+    # plt.title(f"Check B:{b_idx} C:{c_idx} K:{K}")
+    # plt.legend()
+    # plt.savefig("imputation_debug.png")
+    # plt.close()
+
+    # sys.exit()
+    ### Kết thúc Visualization ###
 
     def _process_fusion(self, query_out, reference, cond_flags, x_enc, mask):
         B, T, C = x_enc.shape
-        
+
         # Tạo embedding điều kiện: [B, T, d_cond]
         cond_emb = self.cond_embed(cond_flags)[:, None, :].expand(B, T, -1)
 
         # 3) Xử lý reference (Gán cứng về 0 cho mẫu uncond)
         ref_used = reference.clone()
         ref_used[cond_flags == 0] = 0.0
-        
+
         # Forward qua các layer tham khảo
-        ref_proj = self.ref_projection(ref_used)          # [B, T, K, C]
-        ref_proj = ref_proj.reshape(B, T, -1)             # [B, T, K*C]
-        ref_out = self.ref_concat(ref_proj)               # [B, T, C]
+        ref_proj = self.ref_projection(ref_used)  # [B, T, K, C]
+        ref_proj = ref_proj.reshape(B, T, -1)  # [B, T, K*C]
+        ref_out = self.ref_concat(ref_proj)  # [B, T, C]
 
         # 4) Fusion: Kết hợp Query, Ref và Cond
         # Kích thước cat: [B, T, C + C + d_cond]
-        fused = self.both(torch.cat([query_out, ref_out, cond_emb], dim=-1)) # [B, T, C]
+        fused = self.both(
+            torch.cat([query_out, ref_out, cond_emb], dim=-1)
+        )  # [B, T, C]
 
         # 5) Kết hợp với observed values
         return fused * (1 - mask) + x_enc * mask
 
     def imputation_retrieval(
-        self, 
-        x_enc, x_mark_enc,
-        reference,          # [B, T, K, C]
-        x_dec, x_mark_dec,
-        mask,               # [B, T, C]
+        self,
+        x_enc,
+        x_mark_enc,
+        reference,  # [B, T, K, C]
+        x_dec,
+        x_mark_dec,
+        mask,  # [B, T, C]
         cfg_scale: float = 1.0,
         p_uncond: float = 0.5,
         training: bool = True,
-        cond: bool = True   
+        cond: bool = True,
     ):
         # 1) Encoder
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         enc_out, _ = self.encoder(enc_out, attn_mask=None)
-        query_out = self.projection(enc_out) 
+        query_out = self.projection(enc_out)
 
         if training:
-            cond_flags = (torch.rand(x_enc.shape[0], device=x_enc.device) > p_uncond).long()
+            cond_flags = (
+                torch.rand(x_enc.shape[0], device=x_enc.device) > p_uncond
+            ).long()
             return self._process_fusion(query_out, reference, cond_flags, x_enc, mask)
-        
 
         else:
             # cond = 0
-            flags_cond = torch.full((x_enc.shape[0],), 1, device=x_enc.device, dtype=torch.long)
-            eps_cond = self._process_fusion(query_out, reference, flags_cond, x_enc, mask)
-            
+            flags_cond = torch.full(
+                (x_enc.shape[0],), 1, device=x_enc.device, dtype=torch.long
+            )
+            eps_cond = self._process_fusion(
+                query_out, reference, flags_cond, x_enc, mask
+            )
+
             if cfg_scale == 1.0:
                 return eps_cond
-            
+
             # uncond = 0
-            flags_uncond = torch.full((x_enc.shape[0],), 0, device=x_enc.device, dtype=torch.long)
-            eps_uncond = self._process_fusion(query_out, reference, flags_uncond, x_enc, mask)
-            
+            flags_uncond = torch.full(
+                (x_enc.shape[0],), 0, device=x_enc.device, dtype=torch.long
+            )
+            eps_uncond = self._process_fusion(
+                query_out, reference, flags_uncond, x_enc, mask
+            )
+
             # CFG: Out = Uncond + scale * (Cond - Uncond)
 
             return eps_uncond + cfg_scale * (eps_cond - eps_uncond)
-    
+
     def anomaly_detection(self, x_enc):
         # enc
         enc_out = self.enc_embedding(x_enc, None)
@@ -246,20 +298,34 @@ class Model(nn.Module):
         output = self.projection(output)  # (batch_size, num_classes)
         return output
 
-    def forward(self, x_enc, x_mark_enc, reference=None, x_dec=None, x_mark_dec=None, mask=None, training=1):
-        if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
+    def forward(
+        self,
+        x_enc,
+        x_mark_enc,
+        reference=None,
+        x_dec=None,
+        x_mark_dec=None,
+        mask=None,
+        training=1,
+    ):
+        if (
+            self.task_name == "long_term_forecast"
+            or self.task_name == "short_term_forecast"
+        ):
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
-            return dec_out[:, -self.pred_len:, :]  # [B, L, D]
-        if self.task_name == 'imputation':
+            return dec_out[:, -self.pred_len :, :]  # [B, L, D]
+        if self.task_name == "imputation":
             dec_out = self.imputation(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]
-        if self.task_name == 'imputation_retrieval':
-            dec_out = self.imputation_retrieval(x_enc, x_mark_enc, reference, x_dec, x_mark_dec, mask, training=training)
+        if self.task_name == "imputation_retrieval":
+            dec_out = self.imputation_retrieval(
+                x_enc, x_mark_enc, reference, x_dec, x_mark_dec, mask, training=training
+            )
             return dec_out  # [B, L, D]
-        if self.task_name == 'anomaly_detection':
+        if self.task_name == "anomaly_detection":
             dec_out = self.anomaly_detection(x_enc)
             return dec_out  # [B, L, D]
-        if self.task_name == 'classification':
+        if self.task_name == "classification":
             dec_out = self.classification(x_enc, x_mark_enc)
             return dec_out  # [B, N]
         return None

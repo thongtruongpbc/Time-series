@@ -3,7 +3,7 @@ cd /mnt/time-series/thongtx/imputation
 model_emb=Transformer
 model_name=Transformer_retrieval
 # 0.25 0.375 0.5
-for rate in 0.125 0.25 0.375 0.5
+for rate in 0.125
 do
   echo "Running experiment with mask_rate: $rate"
   python -u run.py \
@@ -33,6 +33,7 @@ do
     --itr 1 \
     --top_k 1 \
     --learning_rate 0.001 \
+    --patience 10 \
     --checkpoints ./checkpoints_imputation_retrieval/
 done
 # python -u run.py \

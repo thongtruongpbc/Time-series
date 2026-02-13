@@ -4,12 +4,11 @@
 
 import gdown
 import os
+
 file_id = "1m8jh1z4VNMgQ49DRwywyvYYgs3G5WBsB"
 
 gdown.download(
-    id=file_id,
-    output="/home/cds/mnt/thongtx/datasets/dataset.zip",
-    quiet=False
+    id=file_id, output="/home/cds/mnt/thongtx/datasets/dataset.zip", quiet=False
 )
 
 gdown.extractall("/home/cds/mnt/thongtx/datasets/dataset.zip")

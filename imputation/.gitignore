@@ -17,4 +17,15 @@ __pycache__/
 !*.py
 !*.sh
 commit.sh
-commit.sh
+baseline_thuml/
+selective-learning/
+download_datasets.py
+exp
+ml-engineering/
+../backbone_retrieval/
+../exp/
+.vscode/
+# mlflow.db
+# mlruns/
+test_results_retrieval/
+../ml-engineering/
