@@ -2,8 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.fft
-from layers.Embed import DataEmbedding
+from layers.Embed import DataEmbedding, TokenEmbedding
 from layers.Conv_Blocks import Inception_Block_V1
+from layers.RevIN import RevIN
+from layers.SelfAttention_Family import (
+    FullAttention,
+    AttentionLayer,
+    SampleWiseAttention,
+)
 
 
 def FFT_for_Period(x, k=2):
@@ -37,10 +43,10 @@ class TimesBlock(nn.Module):
 
     def forward(self, x):
         B, T, N = x.size()
-        period_list, period_weight = FFT_for_Period(x, self.k)
+        period_list, period_weight = FFT_for_Period(x, 5)  # self.k
 
         res = []
-        for i in range(self.k):
+        for i in range(5):  # self.k
             period = period_list[i]
             # padding
             if (self.seq_len + self.pred_len) % period != 0:
@@ -88,18 +94,91 @@ class Model(nn.Module):
         self.top_k = configs.top_k
         self.d_cond = 16
 
+        # RevIN
+        self.revin = RevIN(num_features=configs.enc_in)
+        self.ref_revin = RevIN(num_features=configs.enc_in)
+
         self.model = nn.ModuleList(
             [TimesBlock(configs) for _ in range(configs.e_layers)]
         )
-        self.enc_embedding = DataEmbedding(
-            configs.enc_in,
-            configs.d_model,
-            configs.embed,
-            configs.freq,
-            configs.dropout,
+
+        self.ref_model = nn.ModuleList(
+            [TimesBlock(configs) for _ in range(configs.e_layers)]
         )
+        # self.enc_embedding = DataEmbedding(
+        #     configs.enc_in,
+        #     configs.d_model,
+        #     configs.embed,
+        #     configs.freq,
+        #     configs.dropout,
+        # )
+
+        # #ref embedding
+        # self.ref_embedding = DataEmbedding(
+        #     configs.enc_in,
+        #     configs.d_model,
+        #     configs.embed,
+        #     configs.freq,
+        #     configs.dropout,
+        # )
+        self.enc_embedding = TokenEmbedding(configs.enc_in, configs.d_model)
+        self.cross_embedding = TokenEmbedding(configs.enc_in, configs.d_model)
+
+        self.ref_projection = nn.Linear(configs.enc_in, configs.d_model, bias=False)
+        self.concat_projection = nn.Linear(
+            configs.top_k * configs.d_model, configs.d_model, bias=False
+        )
+
+        # multihead self-attention
+        self.multihead_attn = torch.nn.MultiheadAttention(
+            configs.d_model, configs.n_heads, dropout=0.1
+        )
+        # cross attention
+        self.cross_attn = AttentionLayer(
+            FullAttention(
+                False,
+                configs.factor,
+                attention_dropout=configs.dropout,
+                output_attention=False,
+            ),
+            configs.d_model,
+            configs.n_heads,
+        )
+        # samplewise attention
+        self.samplewise_attention = SampleWiseAttention(
+            T=self.seq_len, D=configs.d_model, d_model=configs.d_model
+        )
+        self.attn_norm = nn.LayerNorm(configs.d_model)
+
+        # cross attention in each layer
+        self.cross_attn = nn.ModuleList(
+            [
+                AttentionLayer(
+                    FullAttention(
+                        False,
+                        configs.factor,
+                        attention_dropout=configs.dropout,
+                        output_attention=False,
+                    ),
+                    configs.d_model,
+                    configs.n_heads,
+                )
+                for _ in range(configs.e_layers)
+            ]
+        )
+
+        self.ffn = nn.Sequential(
+            nn.Linear(configs.d_model, configs.d_ff),
+            nn.GELU(),
+            nn.Dropout(configs.dropout),
+            nn.Linear(configs.d_ff, configs.d_model),
+            nn.Dropout(configs.dropout),
+        )
+        self.ffn_norm = nn.LayerNorm(configs.d_model)
+
         self.layer = configs.e_layers
         self.layer_norm = nn.LayerNorm(configs.d_model)
+        self.ref_layer_norm = nn.LayerNorm(configs.d_model)
         if (
             self.task_name == "long_term_forecast"
             or self.task_name == "short_term_forecast"
@@ -110,16 +189,7 @@ class Model(nn.Module):
             self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
 
         if self.task_name == "imputation_retrieval":
-            self.projection = nn.Linear(configs.d_model, configs.c_out, bias=False)
-            self.ref_projection = nn.Linear(configs.c_out, configs.c_out, bias=False)
-            self.ref_concat = nn.Linear(
-                self.top_k * configs.c_out, configs.c_out, bias=False
-            )
-            self.cond_embed = nn.Embedding(2, self.d_cond)
-
-            self.both = nn.Linear(
-                2 * configs.c_out + self.d_cond, configs.c_out, bias=False
-            )
+            self.projection = nn.LazyLinear(configs.c_out)
 
         if self.task_name == "classification":
             self.act = F.gelu
@@ -184,121 +254,143 @@ class Model(nn.Module):
         )
         return dec_out
 
-    def _process_fusion(self, query_out, reference, cond_flags, x_enc, mask):
-        B, T, C = x_enc.shape
-
-        # Tạo embedding điều kiện: [B, T, d_cond]
-        cond_emb = self.cond_embed(cond_flags)[:, None, :].expand(B, T, -1)
-
-        # 3) Xử lý reference (Gán cứng về 0 cho mẫu uncond)
-        ref_used = reference.clone()
-        ref_used[cond_flags == 0] = 0.0
-
-        # Forward qua các layer tham khảo
-        ref_proj = self.ref_projection(ref_used)  # [B, T, K, C]
-        ref_proj = ref_proj.reshape(B, T, -1)  # [B, T, K*C]
-        ref_out = self.ref_concat(ref_proj)  # [B, T, C]
-
-        # 4) Fusion: Kết hợp Query, Ref và Cond
-        # Kích thước cat: [B, T, C + C + d_cond]
-        fused = self.both(
-            torch.cat([query_out, ref_out, cond_emb], dim=-1)
-        )  # [B, T, C]
-
-        # 5) Kết hợp với observed values
-        return fused * (1 - mask) + x_enc * mask
-
     def imputation_retrieval(
-        self,
-        x_enc,
-        x_mark_enc,
-        reference,  # [B, T, K, C]
-        x_dec,
-        x_mark_dec,
-        mask,  # [B, T, C]
-        cfg_scale: float = 0.2,
-        p_uncond: float = 0.0,
-        training: bool = True,
-        cond: bool = True,
+        self, x_enc, x_mark_enc, reference, x_dec, x_mark_dec, mask, training=1
     ):
+        if self.configs.ablation_arch == "Linear fuse":
+            # reference
+            # dec_out = self.projection(enc_out)
+            B, top_k, T, C = reference.shape
+            reference = reference.view(B * top_k, T, C)
+            reference = self.ref_revin(reference, mode="norm")
+            # reference = self.ref_embedding(reference, x_mark_enc.repeat_interleave(top_k, dim=0))
 
-        means = torch.sum(x_enc, dim=1) / torch.sum(mask == 1, dim=1)
-        means = means.unsqueeze(1).detach()
-        x_enc = x_enc.sub(means)
-        x_enc = x_enc.masked_fill(mask == 0, 0)
-        stdev = torch.sqrt(
-            torch.sum(x_enc * x_enc, dim=1) / torch.sum(mask == 1, dim=1) + 1e-5
-        )
-        stdev = stdev.unsqueeze(1).detach()
-        x_enc = x_enc.div(stdev)
+            reference = reference.reshape(B, top_k, T, reference.shape[-1])
+            reference = reference.reshape(B, top_k * T, reference.shape[-1])
+            # reference, ref_attns = self.ref_encoder(reference, attn_mask=None)
+            # reference = reference.reshape(B, top_k * T, reference.shape[-1])
+            ref_proj = self.ref_projection(reference)
+            ref_proj = ref_proj.reshape(B, top_k, T, ref_proj.shape[-1])
+            ref_proj = ref_proj.reshape(B, T, top_k * ref_proj.shape[-1])
 
-        # norm reference
-        ref_means = torch.mean(reference, dim=1, keepdim=True)  # [B, 1, K, C]
-        ref_stdev = torch.std(reference, dim=1, keepdim=True) + 1e-5
-        reference = (reference - ref_means) / ref_stdev
-        # 1) Encoder
-        enc_out = self.enc_embedding(x_enc, x_mark_enc)
-        for i in range(self.layer):
-            enc_out = self.layer_norm(self.model[i](enc_out))
-        # project back
-        # De-Normalization from Non-stationary Transformer
-        dec_out = self.projection(enc_out)
-        query_out = dec_out.mul(
-            (stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len + self.seq_len, 1))
-        )
-        query_out = query_out.add(
-            (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len + self.seq_len, 1))
-        )
+            concat_proj = self.concat_projection(ref_proj)
 
-        if training:
-            cond_flags = (
-                torch.rand(x_enc.shape[0], device=x_enc.device) > p_uncond
-            ).long()
-            return self._process_fusion(query_out, reference, cond_flags, x_enc, mask)
+            # input
+            x_enc = self.revin(x_enc, mode="norm", mask=None)
+            enc_out = self.enc_embedding(x_enc, x_mark_enc)
+            # enc_out = self.enc_embedding(x_enc)
+            for i in range(self.layer):
+                enc_out = self.layer_norm(self.model[i](enc_out))
 
-        else:
-            # cond = 0
-            flags_cond = torch.full(
-                (x_enc.shape[0],), 1, device=x_enc.device, dtype=torch.long
+            x_inp = torch.cat([enc_out, concat_proj], dim=2)
+
+            output = self.projection(x_inp)
+            output = self.revin(output, mode="denorm", mask=mask)
+            return output
+        elif self.configs.ablation_arch == "Linear fuse + Cross-attention":
+            # reference
+            # dec_out = self.projection(enc_out)
+            B, top_k, T, C = reference.shape
+            reference = reference.view(B * top_k, T, C)
+            reference = self.ref_revin(reference, mode="norm")
+            reference = reference.reshape(
+                B, top_k, T, reference.shape[-1]
+            )  # reference.shape[-1] = d_model
+            reference = reference.reshape(B, top_k * T, reference.shape[-1])
+            ref_proj = self.ref_projection(reference)
+
+            # input
+            x_enc = self.revin(x_enc, mode="norm", mask=None)
+            enc_out = self.enc_embedding(x_enc, x_mark_enc)
+            # enc_out = self.enc_embedding(x_enc)
+            for i in range(self.layer):
+                enc_out = self.layer_norm(self.model[i](enc_out))
+
+            # cross attn
+            attn_output, attn_output_weights = self.cross_attn(
+                queries=enc_out, keys=ref_proj, values=ref_proj, attn_mask=None
             )
-            eps_cond = self._process_fusion(
-                query_out, reference, flags_cond, x_enc, mask
+
+            # add & norm
+            x_out = self.attn_norm(enc_out + attn_output)
+
+            # ffn + norm
+            x_out = self.ffn_norm(x_out + self.ffn(x_out))
+
+            output = self.projection(x_out)
+            output = self.revin(output, mode="denorm", mask=mask)
+            return output
+        elif self.configs.ablation_arch == "Samplewise-attention":
+            # reference
+            # dec_out = self.projection(enc_out)
+            B, top_k, T, C = reference.shape
+            reference = reference.view(B * top_k, T, C)
+            reference = self.ref_revin(reference, mode="norm")
+            # reference = self.ref_embedding(reference, x_mark_enc.repeat_interleave(top_k, dim=0))
+            reference = reference.reshape(B, top_k, T, reference.shape[-1])
+            reference = reference.reshape(B, top_k * T, reference.shape[-1])
+            # reference, ref_attns = self.ref_encoder(reference, attn_mask=None)
+            # reference = reference.reshape(B, top_k * T, reference.shape[-1])
+            ref_proj = self.ref_projection(reference)
+            ref_proj = ref_proj.reshape(B, top_k, T, ref_proj.shape[-1])
+
+            # input
+            x_enc = self.revin(x_enc, mode="norm", mask=None)
+            enc_out = self.enc_embedding(x_enc, x_mark_enc)
+            # enc_out = self.enc_embedding(x_enc)
+            for i in range(self.layer):
+                enc_out = self.layer_norm(self.model[i](enc_out))
+
+            attn_output, attn_output_weights = self.samplewise_attention(
+                enc_out, ref_proj
             )
+            x_inp = self.attn_norm(enc_out + attn_output)
+            output = self.projection(x_inp)
+            output = self.revin(output, mode="denorm", mask=mask)
+            return output
 
-            if cfg_scale == 1.0:
-                return eps_cond
+        elif (
+            self.configs.ablation_arch
+            == "(Token embedding) Two-branch backbone + Cross-attention"
+        ):
+            # reference
+            # dec_out = self.projection(enc_out)
+            B, top_k, T, C = reference.shape
+            reference = reference.view(B * top_k, T, C)
+            reference = self.ref_revin(reference, mode="norm")
+            # reference = reference.reshape(B, top_k, T, reference.shape[-1]) # reference.shape[-1] = d_model
+            ref_out = self.cross_embedding(reference)
+            # encoder
+            for i in range(self.layer):
+                ref_out = self.ref_layer_norm(self.ref_model[i](ref_out))
 
-            # uncond = 0
-            flags_uncond = torch.full(
-                (x_enc.shape[0],), 0, device=x_enc.device, dtype=torch.long
-            )
-            eps_uncond = self._process_fusion(
-                query_out, reference, flags_uncond, x_enc, mask
-            )
+            ref_out = ref_out.reshape(B, top_k, T, ref_out.shape[-1])
+            ref_out = ref_out.reshape(B, top_k * T, ref_out.shape[-1])
 
-            # CFG: Out = Uncond + scale * (Cond - Uncond)
+            # input
+            x_enc = self.revin(x_enc, mode="norm", mask=None)
+            enc_out = self.enc_embedding(x_enc)
+            # enc_out = self.enc_embedding(x_enc)
+            for i in range(self.layer):
+                enc_out = self.layer_norm(self.model[i](enc_out))
+                attn_output, attn_output_weights = self.cross_attn[i](
+                    queries=enc_out, keys=ref_out, values=ref_out, attn_mask=None
+                )
+                enc_out = self.attn_norm(enc_out + attn_output)
+                enc_out = self.ffn_norm(enc_out + self.ffn(enc_out))
 
-            return eps_uncond + cfg_scale * (eps_cond - eps_uncond)
+            # #cross attn
+            # attn_output, attn_output_weights = self.cross_attn(queries=enc_out, keys=ref_out, values=ref_out, attn_mask=None)
 
-    def get_representation(self, x_enc, x_mark_enc, mask=None):
-        # Normalization from Non-stationary Transformer
-        means = torch.sum(x_enc, dim=1) / torch.sum(mask == 1, dim=1)
-        means = means.unsqueeze(1).detach()
-        x_enc = x_enc.sub(means)
-        x_enc = x_enc.masked_fill(mask == 0, 0)
-        stdev = torch.sqrt(
-            torch.sum(x_enc * x_enc, dim=1) / torch.sum(mask == 1, dim=1) + 1e-5
-        )
-        stdev = stdev.unsqueeze(1).detach()
-        x_enc = x_enc.div(stdev)
+            # #add & norm
+            # x_out = self.attn_norm(enc_out + attn_output)
 
-        # embedding
-        enc_out = self.enc_embedding(x_enc, x_mark_enc)  # [B,T,C]
-        # TimesNet
-        for i in range(self.layer):
-            enc_out = self.layer_norm(self.model[i](enc_out))
+            # # ffn + norm
+            # x_out = self.ffn_norm(x_out + self.ffn(x_out))
 
-        return enc_out
+            output = self.projection(enc_out)
+            output = self.revin(output, mode="denorm", mask=mask)
+            return output
 
     def anomaly_detection(self, x_enc):
         # Normalization from Non-stationary Transformer

@@ -1,17 +1,17 @@
 export CUDA_VISIBLE_DEVICES=0
 cd /mnt/time-series/thongtx/imputation
-model_name=TimesNet
+model_name=TimesNet_retrieval
 model_emb=TimesNet
-
-for rate in 0.125 0.25 0.375 0.5
+#  0.25 0.375 0.5
+for rate in 0.125
 do
   echo "Running experiment with mask_rate: $rate"
 
   python -u run.py \
-    --task_name imputation \
+    --task_name imputation_retrieval \
     --sheet_name 'backbone_retrieval' \
-    --ablation_arch 'baseline' \
-    --is_training 1 \
+    --ablation_arch '(Token embedding) Two-branch backbone + Cross-attention' \
+    --is_training 0 \
     --root_path ./dataset/ETT-small/ \
     --data_path ETTh1.csv \
     --model_id "ETTh1_mask_$rate" \

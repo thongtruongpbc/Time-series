@@ -2,6 +2,7 @@ from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.tools import EarlyStopping, adjust_learning_rate, visual
 from utils.metrics import metric
+from utils.experiments import save_experiment_to_gsheet_oauth
 import torch
 import torch.nn as nn
 from torch import optim
@@ -244,6 +245,20 @@ class Exp_Imputation(Exp_Basic):
             os.makedirs(folder_path)
 
         mae, mse, rmse, mape, mspe = metric(preds[masks == 0], trues[masks == 0])
+
+        metrics = {
+            "mae": float(mae),
+            "mse": float(mse),
+            "rmse": float(rmse),
+            "mape": float(mape),
+            "mspe": float(mspe),
+        }
+
+        # save experiments
+        save_experiment_to_gsheet_oauth(
+            args=self.args, metrics=metrics, sheet_name="backbone_retrieval"
+        )
+
         print("mse:{}, mae:{}".format(mse, mae))
         f = open("result_imputation.txt", "a")
         f.write(setting + "  \n")

@@ -5,6 +5,37 @@ from math import sqrt
 from utils.masking import TriangularCausalMask, ProbMask
 from reformer_pytorch import LSHSelfAttention
 from einops import rearrange, repeat
+import torch.nn.functional as F
+
+
+class SampleWiseAttention(nn.Module):
+    def __init__(self, T, D, d_model):
+        super(SampleWiseAttention, self).__init__()
+        self.T = T
+        self.D = D
+        self.flat_dim = T * D
+
+        self.q_proj = nn.Linear(self.flat_dim, d_model)
+        self.k_proj = nn.Linear(self.flat_dim, d_model)
+        self.v_proj = nn.Linear(self.flat_dim, self.flat_dim)
+
+    def forward(self, query, references):
+        B, k, T, D = references.shape
+
+        q_flat = query.reshape(B, 1, self.flat_dim)
+        ref_flat = references.reshape(B, k, self.flat_dim)
+
+        Q = self.q_proj(q_flat)
+        K = self.k_proj(ref_flat)
+        V = ref_flat
+
+        attn_scores = torch.bmm(Q, K.transpose(1, 2)) / (K.size(-1) ** 0.5)
+        attn_weights = F.softmax(attn_scores, dim=-1)
+
+        out = torch.bmm(attn_weights, V)
+        out = out.reshape(B, T, D)
+
+        return out, attn_weights
 
 
 class DSAttention(nn.Module):

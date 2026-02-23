@@ -3,11 +3,13 @@ cd /mnt/time-series/thongtx/imputation
 model_emb=Transformer
 model_name=Transformer_retrieval
 # 0.25 0.375 0.5
-for rate in 0.125
+for rate in 0.125 0.25 0.375 0.5
 do
   echo "Running experiment with mask_rate: $rate"
   python -u run.py \
     --task_name imputation_retrieval \
+    --sheet_name 'Transformer_retrieval' \
+    --ablation_arch 'early concat + self.encoder' \
     --is_training 1 \
     --root_path ./dataset/ETT-small/ \
     --data_path ETTh1.csv \
@@ -33,7 +35,8 @@ do
     --itr 1 \
     --top_k 1 \
     --learning_rate 0.001 \
-    --patience 10 \
+    --patience 5 \
+    --representation_mode 'cls_token' \
     --checkpoints ./checkpoints_imputation_retrieval/
 done
 # python -u run.py \

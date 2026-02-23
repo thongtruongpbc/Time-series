@@ -40,6 +40,20 @@ if __name__ == "__main__":
         help="task name, options:[long_term_forecast, short_term_forecast, imputation, classification, anomaly_detection]",
     )
     parser.add_argument(
+        "--ablation_arch",
+        type=str,
+        required=True,
+        default=1,
+        help="noting for architecture experiment",
+    )
+    parser.add_argument(
+        "--sheet_name",
+        type=str,
+        required=True,
+        default="Total",
+        help="name of sheet where saving results",
+    )
+    parser.add_argument(
         "--is_training", type=int, required=True, default=1, help="status"
     )
     parser.add_argument(
@@ -108,6 +122,12 @@ if __name__ == "__main__":
 
     # inputation task
     parser.add_argument("--mask_rate", type=float, default=0.25, help="mask ratio")
+    parser.add_argument(
+        "--representation_mode",
+        type=str,
+        default="mean_pooling",
+        help="how to get representation for samples after backbone (B, T, d_model), options:['mean_pooling', 'flatten', 'cls_token']",
+    )
 
     # anomaly detection task
     parser.add_argument(

@@ -24,6 +24,7 @@ class TimesBlock(nn.Module):
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
         self.k = configs.top_k
+        self.representation_mode = configs.representation_mode
         # parameter-efficient design
         self.conv = nn.Sequential(
             Inception_Block_V1(
@@ -167,6 +168,24 @@ class Model(nn.Module):
             (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len + self.seq_len, 1))
         )
         return dec_out
+
+    def get_representation(self, x_enc, x_mark_enc):
+        # Normalization from Non-stationary Transformer
+        means = x_enc.mean(dim=1, keepdim=True).detach()
+        x_enc = x_enc.sub(means)
+
+        stdev = torch.sqrt(
+            x_enc.var(dim=1, keepdim=True, unbiased=False) + 1e-5
+        ).detach()
+        x_enc = x_enc / stdev
+
+        # embedding
+        enc_out = self.enc_embedding(x_enc, x_mark_enc)  # [B,T,C]
+        # TimesNet
+        for i in range(self.layer):
+            enc_out = self.layer_norm(self.model[i](enc_out))
+
+        return enc_out
 
     def anomaly_detection(self, x_enc):
         # Normalization from Non-stationary Transformer

@@ -2,6 +2,7 @@ from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.tools import EarlyStopping, adjust_learning_rate, visual
 from utils.metrics import metric
+from utils.experiments import save_experiment_to_gsheet_oauth
 import torch
 import torch.nn as nn
 from torch import optim
@@ -70,6 +71,21 @@ class Exp_Imputation_retrieval(Exp_Basic):
         return criterion
 
     # Retrieval phrase
+    def clean_params(args):
+        """
+        Docstring for clean_params
+         serve for infer_signature in mlflow
+        :param args
+        """
+        clean = {}
+        for k, v in vars(args).items():
+            if v is None:
+                continue
+            if isinstance(v, torch.device):
+                clean[k] = str(v)
+            elif isinstance(v, (int, float, str, bool)):
+                clean[k] = v
+        return clean
 
     def _cache_dataset(self, dataset):
         """
@@ -94,7 +110,9 @@ class Exp_Imputation_retrieval(Exp_Basic):
         save_dir = os.path.join("./vector_db", setting)
         os.makedirs(save_dir, exist_ok=True)
 
-        save_path = os.path.join(save_dir, "vector_db.pt")
+        save_path = os.path.join(
+            save_dir, f"vector_db_{self.args.representation_mode}.pt"
+        )
         if os.path.isfile(save_path):
             print(f"Found existing vector DB: {save_path}")
             return
@@ -116,6 +134,14 @@ class Exp_Imputation_retrieval(Exp_Basic):
 
                 outputs = self.model_emb.get_representation(batch_x, batch_x_mark)
                 f_dim = -1 if self.args.features == "MS" else 0
+                if self.args.representation_mode == "mean_pooling":
+                    outputs = outputs.mean(dim=1)
+                elif (
+                    self.args.representation_mode == "flatten"
+                    or self.args.representation_mode == "cls_token"
+                ):
+                    outputs = outputs.reshape(outputs.shape[0], -1)
+
                 # outputs = outputs[:, :, f_dim:]
                 all_outputs.append(outputs.cpu())
 
@@ -159,54 +185,6 @@ class Exp_Imputation_retrieval(Exp_Basic):
 
         return torch.tensor(selected, device=indices.device, dtype=torch.long)
 
-    def batch_retrieval(
-        self,
-        query_emb,  # (B, D)
-        faiss_index,  # FAISS index built on vector_db
-        dataset,  # train_dataset
-        top_k,
-        stride,
-        device,
-    ):
-        """
-        Perform batch retrieval with stride constraint.
-
-        Returns:
-            support_x: Tensor (B, k, T, N)
-            support_indices: LongTensor (B, k)
-        """
-
-        B = query_emb.shape[0]
-
-        # FAISS search
-        query_np = query_emb.detach().cpu().numpy().astype("float32")
-        _, I = faiss_index.search(query_np, top_k + 2 * self.args.seq_len)
-
-        support_x = []
-        support_indices = []
-
-        for b in range(B):
-            # stride filter
-            selected = self.stride_filter(I[b], top_k, stride)
-
-            if len(selected) < top_k:
-                selected += list(I[b][: top_k - len(selected)])
-
-            selected = selected[:top_k]
-            support_indices.append(selected)
-
-            samples = []
-            for idx in selected:
-                x, _, _, _ = dataset[idx]
-                samples.append(x)
-
-            support_x.append(torch.stack(samples))  # (k, T, N)
-
-        support_x = torch.stack(support_x).to(device)  # (B, k, T, N)
-        support_indices = torch.tensor(support_indices)  # (B, k)
-
-        return support_x, support_indices
-
     def batch_retrieval_fast(
         self,
         query_emb,  # (B, d_model)
@@ -214,11 +192,17 @@ class Exp_Imputation_retrieval(Exp_Basic):
         top_k,
         stride,
     ):
-        B, d_model = query_emb.shape
+        B, d_model = query_emb.shape[0], query_emb.shape[-1]
         N, T_raw, C = self.cached_x.shape
 
-        # (B, T, d_model)
-        query = query_emb.reshape(-1, d_model)
+        if self.args.representation_mode == "mean_pooling":
+            query = query_emb.mean(dim=1)
+        elif (
+            self.args.representation_mode == "flatten"
+            or self.args.representation_mode == "cls_token"
+        ):
+            query = query_emb.reshape(query_emb.shape[0], -1)
+
         query = F.normalize(query, dim=-1)
         query_np = query.detach().cpu().numpy().astype("float32")
 
@@ -237,7 +221,9 @@ class Exp_Imputation_retrieval(Exp_Basic):
         return support  # (B, top_k, T, C)
 
     def _load_vector_db(self, setting):
-        db_path = os.path.join("./vector_db", setting, "vector_db.pt")
+        db_path = os.path.join(
+            "./vector_db", setting, f"vector_db_{self.args.representation_mode}.pt"
+        )
         vector_db = torch.load(db_path)  # (N, D_MODEL)
 
         N, d_model = vector_db.shape
@@ -270,6 +256,10 @@ class Exp_Imputation_retrieval(Exp_Basic):
                     f_dim = -1 if self.args.features == "MS" else 0
                     # query_emb = query_emb[:, :, f_dim:]   # (B, C, T)
                     query_emb = query_emb.to(self.device)
+                    # if self.args.representation_mode == 'mean_pooling':
+                    #     query = query_emb.mean(dim=1)
+                    # elif self.args.representation_mode == 'flatten' or self.args.representation_mode == 'cls_token':
+                    #     query = query_emb.reshape(query_emb.shape[0], -1)
 
                 reference_x = self.batch_retrieval_fast(
                     query_emb=query_emb,
@@ -348,6 +338,10 @@ class Exp_Imputation_retrieval(Exp_Basic):
                     f_dim = -1 if self.args.features == "MS" else 0
                     # query_emb = query_emb[:, :, f_dim:].to(self.device)   # (B, C, T)
                     query_emb = query_emb.to(self.device)
+                    # if self.args.representation_mode == 'mean_pooling':
+                    #     query = query_emb.mean(dim=1)
+                    # elif self.args.representation_mode == 'flatten' or self.args.representation_mode == 'cls_token':
+                    #     query = query_emb.reshape(query_emb.shape[0], -1)
                 # print(query_emb.shape)
                 reference_x = self.batch_retrieval_fast(
                     query_emb=query_emb,
@@ -375,10 +369,15 @@ class Exp_Imputation_retrieval(Exp_Basic):
                 )
 
                 # signature mlflow
+                args = vars(self.args)
+                args["device"] = str(args["device"])
+                args["down_sampling_method"] = args["down_sampling_method"] or "none"
+
                 signature = infer_signature(
                     batch_x.cpu().numpy(),
                     outputs.cpu().detach().numpy(),
-                    params=vars(self.args),
+                    # params=vars(self.args),
+                    params=args,
                 )
 
                 f_dim = -1 if self.args.features == "MS" else 0
@@ -461,6 +460,11 @@ class Exp_Imputation_retrieval(Exp_Basic):
 
     def test(self, setting, test=0):
         test_data, test_loader = self._get_data(flag="test")
+
+        # cache
+        train_data, train_loader = self._get_data(flag="train")
+        if self.args.is_training == 0:
+            self._cache_dataset(train_data)
         if test:
             print("loading model")
             self.model.load_state_dict(
@@ -490,6 +494,10 @@ class Exp_Imputation_retrieval(Exp_Basic):
                     f_dim = -1 if self.args.features == "MS" else 0
                     # query_emb = query_emb[:, :, f_dim:]   # (B, C, T)
                     query_emb = query_emb.to(self.device)
+                    # if self.args.representation_mode == 'mean_pooling':
+                    #     query = query_emb.mean(dim=1)
+                    # elif self.args.representation_mode == 'flatten' or self.args.representation_mode == 'cls_token':
+                    #     query = query_emb.reshape(query_emb.shape[0], -1)
 
                 reference_x = self.batch_retrieval_fast(
                     query_emb=query_emb,
@@ -555,6 +563,19 @@ class Exp_Imputation_retrieval(Exp_Basic):
                 "final_mape": float(mape),
                 "final_mspe": float(mspe),
             }
+        )
+
+        metrics = {
+            "mae": float(mae),
+            "mse": float(mse),
+            "rmse": float(rmse),
+            "mape": float(mape),
+            "mspe": float(mspe),
+        }
+
+        # save experiments
+        save_experiment_to_gsheet_oauth(
+            args=self.args, metrics=metrics, sheet_name=self.args.sheet_name
         )
 
         print("mse:{}, mae:{}".format(mse, mae))
