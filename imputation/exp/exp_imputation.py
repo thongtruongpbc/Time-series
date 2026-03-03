@@ -256,7 +256,7 @@ class Exp_Imputation(Exp_Basic):
 
         # save experiments
         save_experiment_to_gsheet_oauth(
-            args=self.args, metrics=metrics, sheet_name="backbone_retrieval"
+            args=self.args, metrics=metrics, sheet_name=self.args.sheet_name
         )
 
         print("mse:{}, mae:{}".format(mse, mae))

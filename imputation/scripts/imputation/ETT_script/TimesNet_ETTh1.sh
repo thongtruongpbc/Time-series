@@ -9,8 +9,8 @@ do
 
   python -u run.py \
     --task_name imputation \
-    --sheet_name 'backbone_retrieval' \
-    --ablation_arch 'baseline' \
+    --sheet_name 'freeze_backbone_retrieval' \
+    --ablation_arch 'baseline + projection_2' \
     --is_training 1 \
     --root_path ./dataset/ETT-small/ \
     --data_path ETTh1.csv \

@@ -10,6 +10,34 @@ from layers.SelfAttention_Family import (
     AttentionLayer,
     SampleWiseAttention,
 )
+from layers.Transformer_EncDec import (
+    Decoder,
+    DecoderLayer,
+    Encoder,
+    CrossEncoder,
+    EncoderLayer,
+    ConvLayer,
+    CrossEncoderLayer,
+)
+from models.freeze_backbone import Freeze_Backbone
+import os
+import warnings
+
+warnings.filterwarnings("ignore")
+
+
+class TopKTimestepMask:
+    def __init__(self, B, T, top_k, device):
+        q_idx = torch.arange(T, device=device).view(1, 1, T, 1)
+        k_idx = torch.arange(T, device=device).repeat(top_k).view(1, 1, 1, top_k * T)
+
+        mask = q_idx != k_idx
+
+        self._mask = mask.to(device)
+
+    @property
+    def mask(self):
+        return self._mask
 
 
 def FFT_for_Period(x, k=2):
@@ -93,6 +121,7 @@ class Model(nn.Module):
         self.pred_len = configs.pred_len
         self.top_k = configs.top_k
         self.d_cond = 16
+        self.fuse_rate = configs.fuse_rate
 
         # RevIN
         self.revin = RevIN(num_features=configs.enc_in)
@@ -113,8 +142,8 @@ class Model(nn.Module):
         #     configs.dropout,
         # )
 
-        # #ref embedding
-        # self.ref_embedding = DataEmbedding(
+        # ref embedding
+        # self.cross_embedding = DataEmbedding(
         #     configs.enc_in,
         #     configs.d_model,
         #     configs.embed,
@@ -148,7 +177,9 @@ class Model(nn.Module):
         self.samplewise_attention = SampleWiseAttention(
             T=self.seq_len, D=configs.d_model, d_model=configs.d_model
         )
-        self.attn_norm = nn.LayerNorm(configs.d_model)
+        self.attn_norm = nn.ModuleList(
+            [nn.LayerNorm(configs.d_model) for _ in range(configs.e_layers)]
+        )  # nn.LayerNorm(configs.d_model)
 
         # cross attention in each layer
         self.cross_attn = nn.ModuleList(
@@ -167,18 +198,65 @@ class Model(nn.Module):
             ]
         )
 
-        self.ffn = nn.Sequential(
-            nn.Linear(configs.d_model, configs.d_ff),
-            nn.GELU(),
-            nn.Dropout(configs.dropout),
-            nn.Linear(configs.d_ff, configs.d_model),
-            nn.Dropout(configs.dropout),
+        self.ffn = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Linear(configs.d_model, configs.d_ff),
+                    nn.GELU(),
+                    nn.Dropout(configs.dropout),
+                    nn.Linear(configs.d_ff, configs.d_model),
+                    nn.Dropout(configs.dropout),
+                )
+                for _ in range(configs.e_layers)
+            ]
         )
-        self.ffn_norm = nn.LayerNorm(configs.d_model)
+
+        self.ffn_norm = nn.ModuleList(
+            [nn.LayerNorm(configs.d_model) for _ in range(configs.e_layers)]
+        )  # nn.LayerNorm(configs.d_model)
 
         self.layer = configs.e_layers
         self.layer_norm = nn.LayerNorm(configs.d_model)
-        self.ref_layer_norm = nn.LayerNorm(configs.d_model)
+
+        # Freeze backbone
+        Freeze = Freeze_Backbone(configs)
+        self.freeze_model = Freeze
+        if (
+            self.configs.ablation_arch == "freeze-backbone-retrieval"
+            or self.configs.ablation_arch
+            == "freeze-backbone-retrieval + learnable fusing"
+            or self.configs.ablation_arch == "backbone-retrieval + learnable fusing"
+        ):
+            self.gate = nn.Sequential(
+                nn.Linear(configs.c_out, configs.c_out), nn.Sigmoid()
+            )
+
+            self.ffn = nn.Sequential(
+                nn.Linear(configs.c_out, 4 * configs.c_out),
+                nn.GELU(),
+                nn.Dropout(configs.dropout),
+                nn.Linear(4 * configs.c_out, configs.c_out),
+                nn.Dropout(configs.dropout),
+            )
+            self.projection_refine = nn.Sequential(
+                nn.LayerNorm(configs.enc_in),
+                nn.GELU(),
+                nn.Linear(configs.enc_in, configs.enc_in),
+                nn.Dropout(configs.dropout),
+                nn.GELU(),
+                nn.Linear(configs.enc_in, configs.enc_in),
+                nn.Dropout(configs.dropout),
+            )
+
+            self.layer_norm = nn.LayerNorm(configs.c_out)
+            self.layer_norm_1 = nn.LayerNorm(configs.d_model)
+            self.ffn_norm = nn.LayerNorm(configs.c_out)
+            self.fuse_projection = nn.Linear(configs.c_out, configs.c_out)
+
+        self.ref_layer_norm = nn.ModuleList(
+            [nn.LayerNorm(configs.d_model) for _ in range(configs.e_layers)]
+        )  # nn.LayerNorm(configs.d_model)
+
         if (
             self.task_name == "long_term_forecast"
             or self.task_name == "short_term_forecast"
@@ -362,7 +440,7 @@ class Model(nn.Module):
             ref_out = self.cross_embedding(reference)
             # encoder
             for i in range(self.layer):
-                ref_out = self.ref_layer_norm(self.ref_model[i](ref_out))
+                ref_out = self.layer_norm[0](self.model[i](ref_out))
 
             ref_out = ref_out.reshape(B, top_k, T, ref_out.shape[-1])
             ref_out = ref_out.reshape(B, top_k * T, ref_out.shape[-1])
@@ -371,13 +449,15 @@ class Model(nn.Module):
             x_enc = self.revin(x_enc, mode="norm", mask=None)
             enc_out = self.enc_embedding(x_enc)
             # enc_out = self.enc_embedding(x_enc)
+
+            custom_mask = TopKTimestepMask(B, T, top_k, device=enc_out.device)
             for i in range(self.layer):
-                enc_out = self.layer_norm(self.model[i](enc_out))
+                enc_out = self.layer_norm[0](self.model[i](enc_out))
                 attn_output, attn_output_weights = self.cross_attn[i](
-                    queries=enc_out, keys=ref_out, values=ref_out, attn_mask=None
+                    queries=enc_out, keys=ref_out, values=ref_out, attn_mask=custom_mask
                 )
-                enc_out = self.attn_norm(enc_out + attn_output)
-                enc_out = self.ffn_norm(enc_out + self.ffn(enc_out))
+                enc_out = self.attn_norm[0](enc_out + attn_output)
+                enc_out = self.ffn_norm[0](enc_out + self.ffn[0](enc_out))
 
             # #cross attn
             # attn_output, attn_output_weights = self.cross_attn(queries=enc_out, keys=ref_out, values=ref_out, attn_mask=None)
@@ -390,6 +470,77 @@ class Model(nn.Module):
 
             output = self.projection(enc_out)
             output = self.revin(output, mode="denorm", mask=mask)
+            return output
+
+        elif self.configs.ablation_arch == "freeze-backbone-retrieval":
+            # reference
+            # dec_out = self.projection(enc_out)
+            B, top_k, T, C = reference.shape
+            reference = reference.mean(dim=1)
+            enc_out = self.freeze_model(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
+            enc_out = x_enc * mask + enc_out * (1 - mask)
+
+            enc_out = self.revin(enc_out, mode="norm", mask=None)
+            reference = self.ref_revin(reference, mode="norm")
+            fuse_x = self.fuse_rate * enc_out + (1 - self.fuse_rate) * reference
+            fuse_x = self.layer_norm(fuse_x)
+
+            # ffn_x = self.ffn(fuse_x)
+            # ffn_output = self.ffn_norm(ffn_x + fuse_x)
+            output = fuse_x + self.projection_refine(fuse_x)
+            output = self.revin(output, mode="denorm", mask=None)
+
+            return output
+
+        elif (
+            self.configs.ablation_arch == "freeze-backbone-retrieval + learnable fusing"
+        ):
+            # reference
+            # dec_out = self.projection(enc_out)
+            B, top_k, T, C = reference.shape
+            reference = reference.mean(dim=1)
+            enc_out = self.freeze_model(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
+            enc_out = x_enc * mask + enc_out * (1 - mask)
+
+            enc_out = self.revin(enc_out, mode="norm", mask=None)
+            reference = self.ref_revin(reference, mode="norm")
+            gate_weight = self.gate(enc_out)
+            fuse_x = gate_weight * enc_out + (1 - gate_weight) * reference
+            # fuse_x = self.layer_norm(fuse_x)
+
+            # ffn_x = self.ffn(fuse_x)
+            # ffn_output = self.ffn_norm(ffn_x + fuse_x)
+            output = fuse_x + self.projection_refine(fuse_x)
+            output = self.revin(output, mode="denorm", mask=None)
+
+            return output
+
+        elif self.configs.ablation_arch == "backbone-retrieval + learnable fusing":
+            # reference
+            # dec_out = self.projection(enc_out)
+            B, top_k, T, C = reference.shape
+            reference = reference.mean(dim=1)
+            # input
+            x_enc = self.revin(x_enc, mode="norm", mask=None)
+            enc_out = self.enc_embedding(x_enc)
+            # enc_out = self.enc_embedding(x_enc)
+            for i in range(self.layer):
+                enc_out = self.layer_norm_1(self.model[i](enc_out))
+
+            enc_out = self.projection(enc_out)
+            enc_out = x_enc * mask + enc_out * (1 - mask)
+
+            enc_out = self.revin(enc_out, mode="norm", mask=None)
+            reference = self.ref_revin(reference, mode="norm")
+            gate_weight = self.gate(enc_out)
+            fuse_x = gate_weight * enc_out + (1 - gate_weight) * reference
+            # fuse_x = self.layer_norm(fuse_x)
+
+            # ffn_x = self.ffn(fuse_x)
+            # ffn_output = self.ffn_norm(ffn_x + fuse_x)
+            output = fuse_x + self.projection_refine(fuse_x)
+            output = self.revin(output, mode="denorm", mask=None)
+
             return output
 
     def anomaly_detection(self, x_enc):

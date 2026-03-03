@@ -10,9 +10,23 @@ from layers.SelfAttention_Family import (
     TwoStageAttentionLayer,
 )
 from models.PatchTST import FlattenHead
-
-
+from layers.RevIN import RevIN
+from models.freeze_backbone import Freeze_Backbone
 from math import ceil
+
+
+class TopKTimestepMask:
+    def __init__(self, B, T, top_k, device):
+        q_idx = torch.arange(T, device=device).view(1, 1, T, 1)
+        k_idx = torch.arange(T, device=device).repeat(top_k).view(1, 1, 1, top_k * T)
+
+        mask = q_idx != k_idx
+
+        self._mask = mask.to(device)
+
+    @property
+    def mask(self):
+        return self._mask
 
 
 class Model(nn.Module):
@@ -22,6 +36,7 @@ class Model(nn.Module):
 
     def __init__(self, configs):
         super(Model, self).__init__()
+        self.configs = configs
         self.enc_in = configs.enc_in
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
@@ -39,6 +54,10 @@ class Model(nn.Module):
         self.head_nf = configs.d_model * self.out_seg_num
 
         # Embedding
+        # RevIN
+        self.revin = RevIN(num_features=configs.enc_in)
+        self.ref_revin = RevIN(num_features=configs.enc_in)
+
         self.enc_value_embedding = PatchEmbedding(
             configs.d_model,
             self.seg_len,
@@ -110,11 +129,42 @@ class Model(nn.Module):
                 for l in range(configs.e_layers + 1)
             ],
         )
+
+        # Freeze backbone
+        self.freeze_model = Freeze_Backbone(configs)
         if (
-            self.task_name == "imputation"
-            or self.task_name == "anomaly_detection"
-            or self.task_name == "imputation_retrieval"
+            self.configs.ablation_arch == "freeze-backbone-retrieval"
+            or self.configs.ablation_arch
+            == "freeze-backbone-retrieval + learnable fusing"
+            or self.configs.ablation_arch == "backbone-retrieval + learnable fusing"
         ):
+            self.gate = nn.Sequential(
+                nn.Linear(configs.c_out, configs.c_out), nn.Sigmoid()
+            )
+
+            self.ffn = nn.Sequential(
+                nn.Linear(configs.c_out, 4 * configs.c_out),
+                nn.GELU(),
+                nn.Dropout(configs.dropout),
+                nn.Linear(4 * configs.c_out, configs.c_out),
+                nn.Dropout(configs.dropout),
+            )
+            self.projection_refine = nn.Sequential(
+                nn.LayerNorm(configs.enc_in),
+                nn.GELU(),
+                nn.Linear(configs.enc_in, configs.enc_in),
+                nn.Dropout(configs.dropout),
+                nn.GELU(),
+                nn.Linear(configs.enc_in, configs.enc_in),
+                nn.Dropout(configs.dropout),
+            )
+
+            self.layer_norm = nn.LayerNorm(configs.c_out)
+            self.layer_norm_1 = nn.LayerNorm(configs.d_model)
+            self.ffn_norm = nn.LayerNorm(configs.c_out)
+            self.fuse_projection = nn.Linear(configs.c_out, configs.c_out)
+
+        if self.task_name == "imputation" or self.task_name == "anomaly_detection":
             self.head = FlattenHead(
                 configs.enc_in,
                 self.head_nf,
@@ -160,18 +210,61 @@ class Model(nn.Module):
 
         return dec_out
 
-    def get_representation(self, x_enc, x_mark_enc):
-        x_enc, n_vars = self.enc_value_embedding(x_enc.permute(0, 2, 1))
-        x_enc = rearrange(
-            x_enc, "(b d) seg_num d_model -> b d seg_num d_model", d=n_vars
-        )
-        x_enc += self.enc_pos_embedding
-        x_enc = self.pre_norm(x_enc)
-        enc_out, attns = self.encoder(x_enc)
-        output = enc_out[-1]
-        return output.reshape(
-            output.shape[0], output.shape[1], output.shape[2] * output.shape[3]
-        )
+    def imputation_retrieval(
+        self, x_enc, x_mark_enc, reference, x_dec, x_mark_dec, mask, training=1
+    ):
+        if self.configs.ablation_arch == "Linear fuse":
+            # reference
+            # dec_out = self.projection(enc_out)
+            B, top_k, T, C = reference.shape
+            reference = reference.view(B * top_k, T, C)
+            reference = self.ref_revin(reference, mode="norm")
+            # reference = self.ref_embedding(reference, x_mark_enc.repeat_interleave(top_k, dim=0))
+            reference = reference.reshape(B, top_k, T, reference.shape[-1])
+            reference = reference.reshape(B, top_k * T, reference.shape[-1])
+            # reference, ref_attns = self.ref_encoder(reference, attn_mask=None)
+            # reference = reference.reshape(B, top_k * T, reference.shape[-1])
+            ref_proj = self.ref_projection(reference)
+            ref_proj = ref_proj.reshape(B, top_k, T, ref_proj.shape[-1])
+            ref_proj = ref_proj.reshape(B, T, top_k * ref_proj.shape[-1])
+
+            concat_proj = self.concat_projection(ref_proj)
+
+            # input
+            x_enc = self.revin(x_enc, mode="norm", mask=None)
+            enc_out = self.enc_embedding(x_enc, x_mark_enc)
+            # enc_out = self.enc_embedding(x_enc)
+
+            enc_out, attns = self.encoder(enc_out)
+
+            x_inp = torch.cat([enc_out, concat_proj], dim=2)
+
+            output = self.projection(x_inp)
+            output = self.revin(output, mode="denorm", mask=mask)
+            return output
+
+        elif (
+            self.configs.ablation_arch == "freeze-backbone-retrieval + learnable fusing"
+        ):
+            # reference
+            # dec_out = self.projection(enc_out)
+            B, top_k, T, C = reference.shape
+            reference = reference.mean(dim=1)
+            enc_out = self.freeze_model(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
+            enc_out = x_enc * mask + enc_out * (1 - mask)
+
+            enc_out = self.revin(enc_out, mode="norm", mask=None)
+            reference = self.ref_revin(reference, mode="norm")
+            gate_weight = self.gate(enc_out)
+            fuse_x = gate_weight * enc_out + (1 - gate_weight) * reference
+            # fuse_x = self.layer_norm(fuse_x)
+
+            # ffn_x = self.ffn(fuse_x)
+            # ffn_output = self.ffn_norm(ffn_x + fuse_x)
+            output = fuse_x + self.projection_refine(fuse_x)
+            output = self.revin(output, mode="denorm", mask=None)
+
+            return output
 
     def anomaly_detection(self, x_enc):
         # embedding
@@ -203,15 +296,29 @@ class Model(nn.Module):
         output = self.projection(output)
         return output
 
-    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
+    def forward(
+        self,
+        x_enc,
+        x_mark_enc,
+        reference=None,
+        x_dec=None,
+        x_mark_dec=None,
+        mask=None,
+        training=1,
+    ):
         if (
             self.task_name == "long_term_forecast"
             or self.task_name == "short_term_forecast"
         ):
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.pred_len :, :]  # [B, L, D]
-        if self.task_name == "imputation" or self.task_name == "imputation_retrieval":
+        if self.task_name == "imputation":
             dec_out = self.imputation(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
+            return dec_out  # [B, L, D]
+        if self.task_name == "imputation_retrieval":
+            dec_out = self.imputation_retrieval(
+                x_enc, x_mark_enc, reference, x_dec, x_mark_dec, mask, training=training
+            )
             return dec_out  # [B, L, D]
         if self.task_name == "anomaly_detection":
             dec_out = self.anomaly_detection(x_enc)

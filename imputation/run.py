@@ -46,6 +46,7 @@ if __name__ == "__main__":
         default=1,
         help="noting for architecture experiment",
     )
+
     parser.add_argument(
         "--sheet_name",
         type=str,
@@ -142,8 +143,9 @@ if __name__ == "__main__":
         "--d_conv", type=int, default=4, help="conv kernel size for Mamba"
     )
     parser.add_argument(
-        "--top_k", type=int, default=5, help="for TimesBlock , retrieval"
+        "--top_k", type=int, default=5, help="for TimesBlock, retrieval"
     )
+
     parser.add_argument("--num_kernels", type=int, default=6, help="for Inception")
     parser.add_argument("--enc_in", type=int, default=7, help="encoder input size")
     parser.add_argument("--dec_in", type=int, default=7, help="decoder input size")
@@ -389,6 +391,13 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="DLinear: a linear layer for each variate(channel) individually",
+    )
+
+    parser.add_argument(
+        "--fuse_rate",
+        type=float,
+        default=0.4,
+        help="rate using to combine input and reference",
     )
 
     # TimeFilter

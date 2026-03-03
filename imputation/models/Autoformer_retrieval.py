@@ -18,8 +18,26 @@ from layers.SelfAttention_Family import (
     SampleWiseAttention,
 )
 
-import math
+from models.freeze_backbone import Freeze_Backbone
 import numpy as np
+import os
+import warnings
+
+warnings.filterwarnings("ignore")
+
+
+class TopKTimestepMask:
+    def __init__(self, B, T, top_k, device):
+        q_idx = torch.arange(T, device=device).view(1, 1, T, 1)
+        k_idx = torch.arange(T, device=device).repeat(top_k).view(1, 1, 1, top_k * T)
+
+        mask = q_idx != k_idx
+
+        self._mask = mask.to(device)
+
+    @property
+    def mask(self):
+        return self._mask
 
 
 class Model(nn.Module):
@@ -124,30 +142,39 @@ class Model(nn.Module):
             norm_layer=my_Layernorm(configs.d_model),
         )
 
-        # ref encoder
-        self.ref_encoder = Encoder(
-            [
-                EncoderLayer(
-                    AutoCorrelationLayer(
-                        AutoCorrelation(
-                            False,
-                            configs.factor,
-                            attention_dropout=configs.dropout,
-                            output_attention=False,
-                        ),
-                        configs.d_model,
-                        configs.n_heads,
-                    ),
-                    configs.d_model,
-                    configs.d_ff,
-                    moving_avg=configs.moving_avg,
-                    dropout=configs.dropout,
-                    activation=configs.activation,
-                )
-                for l in range(configs.e_layers)
-            ],
-            norm_layer=my_Layernorm(configs.d_model),
-        )
+        # Freeze backbone
+        self.freeze_model = Freeze_Backbone(configs)
+        if (
+            self.configs.ablation_arch == "freeze-backbone-retrieval"
+            or self.configs.ablation_arch
+            == "freeze-backbone-retrieval + learnable fusing"
+            or self.configs.ablation_arch == "backbone-retrieval + learnable fusing"
+        ):
+            self.gate = nn.Sequential(
+                nn.Linear(configs.c_out, configs.c_out), nn.Sigmoid()
+            )
+
+            self.ffn = nn.Sequential(
+                nn.Linear(configs.c_out, 4 * configs.c_out),
+                nn.GELU(),
+                nn.Dropout(configs.dropout),
+                nn.Linear(4 * configs.c_out, configs.c_out),
+                nn.Dropout(configs.dropout),
+            )
+            self.projection_refine = nn.Sequential(
+                nn.LayerNorm(configs.enc_in),
+                nn.GELU(),
+                nn.Linear(configs.enc_in, configs.enc_in),
+                nn.Dropout(configs.dropout),
+                nn.GELU(),
+                nn.Linear(configs.enc_in, configs.enc_in),
+                nn.Dropout(configs.dropout),
+            )
+
+            self.layer_norm = nn.LayerNorm(configs.c_out)
+            self.layer_norm_1 = nn.LayerNorm(configs.d_model)
+            self.ffn_norm = nn.LayerNorm(configs.c_out)
+            self.fuse_projection = nn.Linear(configs.c_out, configs.c_out)
 
         # Decoder
         if (
@@ -267,64 +294,28 @@ class Model(nn.Module):
             output = self.projection(x_inp)
             output = self.revin(output, mode="denorm", mask=mask)
             return output
-        elif self.configs.ablation_arch == "Linear fuse + Cross-attention":
+
+        elif (
+            self.configs.ablation_arch == "freeze-backbone-retrieval + learnable fusing"
+        ):
             # reference
             # dec_out = self.projection(enc_out)
             B, top_k, T, C = reference.shape
-            reference = reference.view(B * top_k, T, C)
+            reference = reference.mean(dim=1)
+            enc_out = self.freeze_model(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
+            enc_out = x_enc * mask + enc_out * (1 - mask)
+
+            enc_out = self.revin(enc_out, mode="norm", mask=None)
             reference = self.ref_revin(reference, mode="norm")
-            reference = reference.reshape(
-                B, top_k, T, reference.shape[-1]
-            )  # reference.shape[-1] = d_model
-            reference = reference.reshape(B, top_k * T, reference.shape[-1])
-            ref_proj = self.ref_projection(reference)
+            gate_weight = self.gate(enc_out)
+            fuse_x = gate_weight * enc_out + (1 - gate_weight) * reference
+            # fuse_x = self.layer_norm(fuse_x)
 
-            # input
-            x_enc = self.revin(x_enc, mode="norm", mask=None)
-            enc_out = self.enc_embedding(x_enc, x_mark_enc)
-            # enc_out = self.enc_embedding(x_enc)
-            enc_out, attns = self.encoder(enc_out)
+            # ffn_x = self.ffn(fuse_x)
+            # ffn_output = self.ffn_norm(ffn_x + fuse_x)
+            output = fuse_x + self.projection_refine(fuse_x)
+            output = self.revin(output, mode="denorm", mask=None)
 
-            # cross attn
-            attn_output, attn_output_weights = self.cross_attn(
-                queries=enc_out, keys=ref_proj, values=ref_proj, attn_mask=None
-            )
-
-            # add & norm
-            x_out = self.attn_norm(enc_out + attn_output)
-
-            # ffn + norm
-            x_out = self.norm2(x_out + self.ffn(x_out))
-
-            output = self.projection(x_out)
-            output = self.revin(output, mode="denorm", mask=mask)
-            return output
-        elif self.configs.ablation_arch == "Samplewise-attention":
-            # reference
-            # dec_out = self.projection(enc_out)
-            B, top_k, T, C = reference.shape
-            reference = reference.view(B * top_k, T, C)
-            reference = self.ref_revin(reference, mode="norm")
-            # reference = self.ref_embedding(reference, x_mark_enc.repeat_interleave(top_k, dim=0))
-            reference = reference.reshape(B, top_k, T, reference.shape[-1])
-            reference = reference.reshape(B, top_k * T, reference.shape[-1])
-            # reference, ref_attns = self.ref_encoder(reference, attn_mask=None)
-            # reference = reference.reshape(B, top_k * T, reference.shape[-1])
-            ref_proj = self.ref_projection(reference)
-            ref_proj = ref_proj.reshape(B, top_k, T, ref_proj.shape[-1])
-
-            # input
-            x_enc = self.revin(x_enc, mode="norm", mask=None)
-            enc_out = self.enc_embedding(x_enc, x_mark_enc)
-            # enc_out = self.enc_embedding(x_enc)
-            enc_out, attns = self.encoder(enc_out)
-
-            attn_output, attn_output_weights = self.samplewise_attention(
-                enc_out, ref_proj
-            )
-            x_inp = self.attn_norm(enc_out + attn_output)
-            output = self.projection(x_inp)
-            output = self.revin(output, mode="denorm", mask=mask)
             return output
 
     def anomaly_detection(self, x_enc):

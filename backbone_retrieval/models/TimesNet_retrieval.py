@@ -5,6 +5,38 @@ import torch.fft
 from layers.Embed import DataEmbedding
 from layers.Conv_Blocks import Inception_Block_V1
 
+from exp.exp_basic import Exp_Basic
+import os
+import warnings
+
+warnings.filterwarnings("ignore")
+
+
+class Freeze_Backbone(Exp_Basic):
+    def __init__(self, args):
+        super(Freeze_Backbone, self).__init__(args)
+        # build embedding model
+        self.freeze_model = self._build_freeze_model()
+        state = torch.load(
+            os.path.join(
+                "/mnt/time-series/thongtx/imputation/checkpoints_imputation",
+                args.setting,
+                "checkpoint.pth",
+            ),
+            map_location=self.device,
+        )
+
+        self.freeze_model.load_state_dict(state, strict=False)
+        self.freeze_model.to(self.device)
+        self.freeze_model.eval()
+
+    def _build_freeze_model(self):
+        model = self.model_dict[self.args.model].Model(self.args).float()
+
+        if self.args.use_multi_gpu and self.args.use_gpu:
+            model = nn.DataParallel(model, device_ids=self.args.device_ids)
+        return model
+
 
 def FFT_for_Period(x, k=2):
     # [B, T, C]

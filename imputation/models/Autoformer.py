@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from layers.Embed import DataEmbedding, DataEmbedding_wo_pos
-from layers.RevIN import RevIN
 from layers.AutoCorrelation import AutoCorrelation, AutoCorrelationLayer
 from layers.Autoformer_EncDec import (
     Encoder,
@@ -33,9 +32,6 @@ class Model(nn.Module):
         # Decomp
         kernel_size = configs.moving_avg
         self.decomp = series_decomp(kernel_size)
-
-        # RevIN
-        self.revin = RevIN(num_features=configs.enc_in)
 
         # Embedding
         self.enc_embedding = DataEmbedding_wo_pos(
@@ -116,7 +112,7 @@ class Model(nn.Module):
                 norm_layer=my_Layernorm(configs.d_model),
                 projection=nn.Linear(configs.d_model, configs.c_out, bias=True),
             )
-        if self.task_name == "imputation":
+        if self.task_name == "imputation" or self.task_name == "imputation_retrieval":
             self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
         if self.task_name == "anomaly_detection":
             self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
@@ -153,28 +149,16 @@ class Model(nn.Module):
 
     def imputation(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask):
         # enc
-        B = x_enc.size(0)
-        x_enc = self.revin(x_enc, mode="norm")
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
         # final
         dec_out = self.projection(enc_out)
-        dec_out = self.revin(dec_out, mode="denorm")
         return dec_out
 
     def get_representation(self, x_enc, x_mark_enc):
-        # Embedding
-        B = x_enc.size(0)
-        x_enc = self.revin(x_enc, mode="norm")
+        # enc
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
-        enc_out = self.enc_embedding(x_enc)
-        # cls_token = self.cls_token.expand(B, -1, -1)  # [B, 1, d_model]
-        # enc_out = torch.cat([cls_token, enc_out], dim=1)  # [B, L+1, d_model]
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
-        # e_out, cls_out = (
-        #     enc_out[:, 1:, :],
-        #     enc_out[:, 0, :],
-        # )  # [B, L, d_model], [B, 1, d_model]
         return enc_out
 
     def anomaly_detection(self, x_enc):
@@ -208,7 +192,7 @@ class Model(nn.Module):
         ):
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.pred_len :, :]  # [B, L, D]
-        if self.task_name == "imputation":
+        if self.task_name == "imputation" or self.task_name == "imputation_retrieval":
             dec_out = self.imputation(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]
         if self.task_name == "anomaly_detection":

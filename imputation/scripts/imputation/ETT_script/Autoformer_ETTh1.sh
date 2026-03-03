@@ -1,15 +1,17 @@
 export CUDA_VISIBLE_DEVICES=0
 cd /mnt/time-series/thongtx/imputation
-model_emb=Autoformer
 model_name=Autoformer
-#  0.25 0.375 0.5
+model_emb=Autoformer
+
 for rate in 0.125 0.25 0.375 0.5
 do
   echo "Running experiment with mask_rate: $rate"
 
   python -u run.py \
     --task_name imputation \
-    --is_training 0 \
+    --sheet_name 'freeze_backbone_retrieval' \
+    --ablation_arch 'baseline' \
+    --is_training 1 \
     --root_path ./dataset/ETT-small/ \
     --data_path ETTh1.csv \
     --model_id "ETTh1_mask_$rate" \
@@ -34,5 +36,6 @@ do
     --itr 1 \
     --top_k 5 \
     --learning_rate 0.001 \
+    --representation_mode 'mean_pooling' \
     --checkpoints ./checkpoints_imputation/
 done

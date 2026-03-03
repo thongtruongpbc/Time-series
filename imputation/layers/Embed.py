@@ -135,6 +135,8 @@ class DataEmbedding(nn.Module):
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x, x_mark):
+        param = next(self.parameters())
+        x = x.to(device=param.device, dtype=param.dtype)
         if x_mark is None:
             x = self.value_embedding(x) + self.position_embedding(x)
         else:
@@ -211,5 +213,8 @@ class PatchEmbedding(nn.Module):
         x = x.unfold(dimension=-1, size=self.patch_len, step=self.stride)
         x = torch.reshape(x, (x.shape[0] * x.shape[1], x.shape[2], x.shape[3]))
         # Input encoding
+        device = self.value_embedding.weight.device
+        dtype = self.value_embedding.weight.dtype
+        x = x.to(device, dtype=dtype)
         x = self.value_embedding(x) + self.position_embedding(x)
         return self.dropout(x), n_vars

@@ -1,48 +1,33 @@
 import os
-import openpyxl
 import pandas as pd
-import gspread
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-import pickle
-import os
-import pandas as pd
-
 import numpy as np
-import pandas as pd
-
-import numpy as np
-import pandas as pd
 import torch
+import pygsheets
 
-
-def ensure_header(sheet, columns):
-    first_row = sheet.row_values(1)
-    if not first_row or all(cell == "" for cell in first_row):
-        sheet.update("A1", [columns], value_input_option="RAW")
+# --- Data Transformation Layer (Single Responsibility) ---
 
 
 def to_python_safe(x):
+    """
+    Serializes complex data types (Tensors, Numpy, etc.)
+    into a format compatible with Google Sheets/Excel.
+    """
     if x is None:
         return ""
 
-    # torch.device, torch.dtype
+    # Handle PyTorch specific types
     if isinstance(x, (torch.device, torch.dtype)):
         return str(x)
-
-    # torch.Tensor
     if isinstance(x, torch.Tensor):
         return f"Tensor(shape={tuple(x.shape)})"
 
-    # numpy scalar
+    # Handle Numpy scalars and arrays
     if hasattr(x, "item") and not isinstance(x, (list, tuple, np.ndarray)):
         return x.item()
-
-    # list / array / tuple
     if isinstance(x, (list, tuple, np.ndarray)):
         return str(x)
 
-    # NaN (scalar only)
+    # Handle NaN values
     try:
         if pd.isna(x):
             return ""
@@ -52,60 +37,31 @@ def to_python_safe(x):
     return x
 
 
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
+# --- Authentication Layer (Open/Closed Principle) ---
 
 
 def get_gspread_client():
-    creds = None
-
-    if os.path.exists("token.pickle"):
-        with open("token.pickle", "rb") as f:
-            creds = pickle.load(f)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                "client_secret.json", SCOPES
-            )
-
-            auth_url, _ = flow.authorization_url(
-                prompt="consent", access_type="offline"
-            )
-
-            print("\n Open this URL in your browser:\n")
-            print(auth_url)
-
-            code = os.environ.get("GOOGLE_OAUTH_CODE")
-            if not code:
-                raise RuntimeError(
-                    "GOOGLE_OAUTH_CODE not set. "
-                    "Please authorize in browser and export the code."
-                )
-
-            flow.fetch_token(code=code)
-            creds = flow.credentials
-
-        with open("token.pickle", "wb") as f:
-            pickle.dump(creds, f)
-
-    return gspread.authorize(creds)
+    """
+    Authorizes using OAuth2.
+    It will open a browser for the first run and cache the token
+    locally to avoid future manual sign-ins.
+    """
+    # pygsheets looks for 'client_secret.json' and stores credentials in a local file
+    return pygsheets.authorize(client_secret="client_secret.json")
 
 
-# automate create sheet name
-def get_or_create_worksheet(client, spreadsheet_id, sheet_name, rows=1000, cols=50):
-    sh = client.open_by_key(spreadsheet_id)
+# --- Storage Layer (Interface Segregation) ---
 
+
+def get_or_create_worksheet(client, spreadsheet_id, sheet_name):
+    """
+    Opens the spreadsheet and ensures the worksheet exists.
+    """
+    spreadsheet = client.open_by_key(spreadsheet_id)
     try:
-        sheet = sh.worksheet(sheet_name)
-    except Exception:
-        sheet = sh.add_worksheet(title=sheet_name, rows=rows, cols=cols)
-
-    return sheet
+        return spreadsheet.worksheet_by_title(sheet_name)
+    except pygsheets.exceptions.WorksheetNotFound:
+        return spreadsheet.add_worksheet(sheet_name)
 
 
 def save_experiment_to_gsheet_oauth(
@@ -114,33 +70,44 @@ def save_experiment_to_gsheet_oauth(
     spreadsheet_id="1k0e4gQpWVylg6NNedfhYp71rTvPoLvvxsFADsa2QW4U",
     sheet_name="Total",
 ):
+    """
+    Saves experiment results to Google Sheets using pygsheets.
+    """
     client = get_gspread_client()
-    sheet = get_or_create_worksheet(client, spreadsheet_id, sheet_name)
+    worksheet = get_or_create_worksheet(client, spreadsheet_id, sheet_name)
 
-    row = {**vars(args), **metrics}
-    df = pd.DataFrame([row])
-    columns = df.columns.tolist()
-    ensure_header(sheet, columns)
+    # Prepare data row
+    combined_data = {**vars(args), **metrics}
+    # Ensure all values are serialized for Google Sheets
+    serialized_row = [to_python_safe(v) for v in combined_data.values()]
+    headers = list(combined_data.keys())
 
-    existing_rows = sheet.get_all_values()
+    # Check if header exists by looking at cell A1
+    existing_headers = worksheet.get_row(1, include_tailing_empty=False)
+    if not existing_headers:
+        worksheet.set_dataframe(pd.DataFrame(columns=headers), start="A1")
 
-    if not existing_rows:
-        sheet.append_row(df.columns.tolist())
-    row = [to_python_safe(x) for x in df.iloc[0]]
-
-    sheet.append_row(row, value_input_option="USER_ENTERED")
+    # Append the new row to the end of the table
+    # pygsheets append_table automatically finds the last row
+    worksheet.append_table(values=[serialized_row], start="A1", overwrite=False)
+    print(f"Experiment data successfully saved to Google Sheet: {sheet_name}")
 
 
 def save_experiment_to_excel(args, metrics, excel_path="experiments.xlsx"):
-    # args: Namespace (self.args)
-    # metrics: dict {mae, mse, rmse, mape, mspe}
-
-    row = {**vars(args), **metrics}
-    df_new = pd.DataFrame([row])
+    """
+    Saves experiment results to a local Excel file.
+    """
+    row_dict = {**vars(args), **metrics}
+    # Clean data before creating DataFrame
+    cleaned_row = {k: to_python_safe(v) for k, v in row_dict.items()}
+    df_new = pd.DataFrame([cleaned_row])
 
     if os.path.exists(excel_path):
-        df_old = pd.read_excel(excel_path)
-        df_all = pd.concat([df_old, df_new], ignore_index=True)
+        try:
+            df_old = pd.read_excel(excel_path)
+            df_all = pd.concat([df_old, df_new], ignore_index=True)
+        except Exception:
+            df_all = df_new
     else:
         df_all = df_new
 

@@ -225,7 +225,7 @@ class Exp_Imputation_retrieval(Exp_Basic):
             "./vector_db", setting, f"vector_db_{self.args.representation_mode}.pt"
         )
         vector_db = torch.load(db_path)  # (N, D_MODEL)
-
+        print(vector_db.shape)
         N, d_model = vector_db.shape
         self.db_channels = d_model
 
@@ -418,16 +418,6 @@ class Exp_Imputation_retrieval(Exp_Basic):
             vali_loss = self.vali(vali_data, vali_loader, criterion)
             test_loss = self.vali(test_data, test_loader, criterion)
 
-            mlflow.log_metrics(
-                {
-                    "train_loss": float(train_loss),
-                    "val_loss": float(vali_loss),
-                    "test_loss": float(test_loss),
-                },
-                step=epoch,
-            )
-
-            mlflow.log_artifact(os.path.join(path, "checkpoint.pth"))
             # summary
             # model_stats = summary(self.model, input_size=(B, T, N))
             # with open("model_summary.txt", "w") as f:
@@ -445,8 +435,19 @@ class Exp_Imputation_retrieval(Exp_Basic):
                 break
             adjust_learning_rate(model_optim, epoch + 1, self.args)
 
+            mlflow.log_metrics(
+                {
+                    "train_loss": float(train_loss),
+                    "val_loss": float(vali_loss),
+                    "test_loss": float(test_loss),
+                },
+                step=epoch,
+            )
+
+            mlflow.log_artifact(os.path.join(path, "checkpoint.pth"))
+
         best_model_path = path + "/" + "checkpoint.pth"
-        self.model.load_state_dict(torch.load(best_model_path))
+        # self.model.load_state_dict(torch.load(best_model_path, weights_only=False))
         # Log the final trained model
         mlflow.pytorch.log_model(
             pytorch_model=self.model,

@@ -2,10 +2,10 @@
 export CUDA_VISIBLE_DEVICES=0
 cd /mnt/time-series/thongtx/imputation
 
-model_name=Autoformer_retrieval
-model_emb=Autoformer
+model_name=Crossformer_retrieval
+model_emb=Crossformer
 
-mask_rates=(0.25 0.375 0.5) # 0.25 0.375 0.5
+mask_rates=(0.125 0.25 0.375 0.5) # 0.25 0.375 0.5
 fuse_rates=(1)
 top_ks=(1 3 5) # 3 5
 
@@ -13,6 +13,7 @@ for rate in "${mask_rates[@]}"
 do
     for fuse in "${fuse_rates[@]}"
     do
+
         for k in "${top_ks[@]}"
         do
             echo "Running: Mask=$rate, Fuse=$fuse, Top_k=$k"
@@ -40,8 +41,8 @@ do
                 --dec_in 7 \
                 --c_out 7 \
                 --batch_size 16 \
-                --d_model 128 \
-                --d_ff 128 \
+                --d_model 64 \
+                --d_ff 64 \
                 --des 'Exp' \
                 --itr 1 \
                 --top_k $k \

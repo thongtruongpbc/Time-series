@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.fft
-from layers.Embed import DataEmbedding
+from layers.Embed import DataEmbedding, DataEmbedding_wo_pos
 from layers.Conv_Blocks import Inception_Block_V1
 
 
@@ -97,14 +97,31 @@ class Model(nn.Module):
             configs.dropout,
         )
         self.layer = configs.e_layers
-        self.layer_norm = nn.LayerNorm(configs.d_model)
+        self.layer_norm = nn.ModuleList(
+            [nn.LayerNorm(configs.d_model) for _ in range(configs.e_layers)]
+        )
+
+        self.projection_refine = nn.Sequential(
+            nn.LayerNorm(configs.enc_in),
+            nn.GELU(),
+            nn.Linear(configs.enc_in, configs.enc_in),
+            nn.Dropout(configs.dropout),
+            nn.GELU(),
+            nn.Linear(configs.enc_in, configs.enc_in),
+            nn.Dropout(configs.dropout),
+        )
+
         if (
             self.task_name == "long_term_forecast"
             or self.task_name == "short_term_forecast"
         ):
             self.predict_linear = nn.Linear(self.seq_len, self.pred_len + self.seq_len)
             self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
-        if self.task_name == "imputation" or self.task_name == "anomaly_detection":
+        if (
+            self.task_name == "imputation"
+            or self.task_name == "imputation_retrieval"
+            or self.task_name == "anomaly_detection"
+        ):
             self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
         if self.task_name == "classification":
             self.act = F.gelu
@@ -156,9 +173,10 @@ class Model(nn.Module):
         enc_out = self.enc_embedding(x_enc, x_mark_enc)  # [B,T,C]
         # TimesNet
         for i in range(self.layer):
-            enc_out = self.layer_norm(self.model[i](enc_out))
+            enc_out = self.layer_norm[i](self.model[0](enc_out))
         # project back
         dec_out = self.projection(enc_out)
+        dec_out = dec_out + self.projection_refine(dec_out)
 
         # De-Normalization from Non-stationary Transformer
         dec_out = dec_out.mul(
@@ -183,7 +201,7 @@ class Model(nn.Module):
         enc_out = self.enc_embedding(x_enc, x_mark_enc)  # [B,T,C]
         # TimesNet
         for i in range(self.layer):
-            enc_out = self.layer_norm(self.model[i](enc_out))
+            enc_out = self.layer_norm[i](self.model[i](enc_out))
 
         return enc_out
 
@@ -236,7 +254,7 @@ class Model(nn.Module):
         ):
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.pred_len :, :]  # [B, L, D]
-        if self.task_name == "imputation":
+        if self.task_name == "imputation" or self.task_name == "imputation_retrieval":
             dec_out = self.imputation(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]
         if self.task_name == "anomaly_detection":

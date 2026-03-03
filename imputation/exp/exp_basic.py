@@ -44,6 +44,7 @@ from models import (
     Autoformer_retrieval,
     TimesNet_retrieval,
     Transformer_retrieval,
+    Crossformer_retrieval,
 )
 
 
@@ -94,6 +95,7 @@ class Exp_Basic(object):
             "TiRex": TiRex,
             "TimesFM": TimesFM,
             "Chronos2": Chronos2,
+            "Crossformer_retrieval": Crossformer_retrieval,
         }
         if args.model == "Mamba":
             print("Please make sure you have successfully installed mamba_ssm")
