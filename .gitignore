@@ -179,3 +179,15 @@ imputation/token.pickle
 imputation/scripts/imputation/logs
 imputation/sheets.googleapis.com-python.json
 backbone_retrieval/.vscode/
+imputation/checkpoints
+imputation/checkpoints_imputation
+imputation/checkpoints_imputation_retrieval
+imputation/vector_db_poly
+imputation/vector_db_poly_tmp
+imputation/polyencoder_retriever/checkpoints_retriever
+imputation/polyencoder_retriever/result_contrastive_final.txt
+imputation/polyencoder_retriever/test_results
+imputation/polyencoder_retriever/ visualization
+imputation/polyencoder_retriever/results
+imputation/polyencoder_retriever/__pycache__
+imputation/polyencoder_retriever/scripts/retriever/logs
