@@ -6,6 +6,90 @@ from utils.masking import TriangularCausalMask, ProbMask
 from reformer_pytorch import LSHSelfAttention
 from einops import rearrange, repeat
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
+
+
+# TimeBridge
+class TSMixer(nn.Module):
+    def __init__(self, attention, d_model, n_heads):
+        super(TSMixer, self).__init__()
+
+        self.attention = attention
+        self.q_proj = nn.Linear(d_model, d_model)
+        self.k_proj = nn.Linear(d_model, d_model)
+        self.v_proj = nn.Linear(d_model, d_model)
+        self.out = nn.Linear(d_model, d_model)
+        self.n_heads = n_heads
+
+    def forward(self, q, k, v, res=False, attn=None):
+        B, L, _ = q.shape
+        _, S, _ = k.shape
+        H = self.n_heads
+
+        q = self.q_proj(q).reshape(B, L, H, -1)
+        k = self.k_proj(k).reshape(B, S, H, -1)
+        v = self.v_proj(v).reshape(B, S, H, -1)
+
+        out, attn = self.attention(q, k, v, res=res, attn=attn)
+        out = out.view(B, L, -1)
+
+        return self.out(out), attn
+
+
+class ResAttention(nn.Module):
+    def __init__(self, attention_dropout=0.1, scale=None, attn_map=False, nst=False):
+        super(ResAttention, self).__init__()
+
+        self.nst = nst
+        self.scale = scale
+        self.attn_map = attn_map
+        self.dropout = nn.Dropout(attention_dropout)
+
+    def forward(self, queries, keys, values, res=False, attn=None):
+        B, L, H, E = queries.shape
+        _, S, _, D = values.shape
+        scale = self.scale or 1.0 / sqrt(E)
+
+        scores = torch.einsum("blhe,bshe->bhls", queries, keys)
+        attn_map = torch.softmax(scale * scores, dim=-1)
+        if self.attn_map is True:
+            heat_map = attn_map.reshape(32, -1, H, L, S)
+            for b in range(heat_map.shape[0]):
+                for c in range(heat_map.shape[1]):
+                    h_map = heat_map[b, c, 0, ...].detach().cpu().numpy()
+                    # plt.savefig(heat_map, f'{b} sample {c} channel')
+
+                    plt.figure(figsize=(10, 8), dpi=200)
+                    plt.imshow(h_map, cmap="Reds", interpolation="nearest")
+                    plt.colorbar()
+
+                    # 设置X轴和Y轴的标签为黑体文字
+                    plt.rcParams["font.family"] = "serif"
+                    plt.rcParams["font.serif"] = ["Times New Roman"]
+                    plt.xlabel("Key Time Patch", fontsize=14)
+                    plt.ylabel("Query Time Patch", fontsize=14)
+                    plt.tight_layout()
+                    if self.nst is True:
+                        plt.savefig(f"./time map/{b}_sample_{c}_channel.png")
+                    else:
+                        plt.savefig(f"./stable time map/{b}_sample_{c}_channel.png")
+                    # 关闭当前图形窗口
+                    plt.close()
+        A = self.dropout(attn_map)
+        V = torch.einsum("bhls,bshd->blhd", A, values)
+
+        return V.contiguous(), A
+
+
+def dot_attention(q, k, v, v_mask=None, dropout=None):
+    attention_weights = torch.matmul(q, k.transpose(-1, -2))
+    if v_mask is not None:
+        attention_weights *= v_mask.unsqueeze(1)
+    attention_weights = F.softmax(attention_weights, -1)
+    if dropout is not None:
+        attention_weights = dropout(attention_weights)
+    output = torch.matmul(attention_weights, v)
+    return output
 
 
 class SampleWiseAttention(nn.Module):

@@ -91,6 +91,7 @@ class Model(nn.Module):
                 for l in range(configs.e_layers)
             ]
         )
+
         # Decoder
         self.dec_pos_embedding = nn.Parameter(
             torch.randn(
@@ -231,7 +232,7 @@ class Model(nn.Module):
             concat_proj = self.concat_projection(ref_proj)
 
             # input
-            x_enc = self.revin(x_enc, mode="norm", mask=None)
+            x_enc = self.revin(x_enc, mode="norm", mask=mask)
             enc_out = self.enc_embedding(x_enc, x_mark_enc)
             # enc_out = self.enc_embedding(x_enc)
 
@@ -253,7 +254,7 @@ class Model(nn.Module):
             enc_out = self.freeze_model(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             enc_out = x_enc * mask + enc_out * (1 - mask)
 
-            enc_out = self.revin(enc_out, mode="norm", mask=None)
+            enc_out = self.revin(enc_out, mode="norm", mask=mask)
             reference = self.ref_revin(reference, mode="norm")
             gate_weight = self.gate(enc_out)
             fuse_x = gate_weight * enc_out + (1 - gate_weight) * reference
@@ -262,7 +263,7 @@ class Model(nn.Module):
             # ffn_x = self.ffn(fuse_x)
             # ffn_output = self.ffn_norm(ffn_x + fuse_x)
             output = fuse_x + self.projection_refine(fuse_x)
-            output = self.revin(output, mode="denorm", mask=None)
+            output = self.revin(output, mode="denorm", mask=mask)
 
             return output
 

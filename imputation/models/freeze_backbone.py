@@ -4,6 +4,7 @@ import os
 from models.Autoformer import Model as Autoformer_Model
 from models.TimesNet import Model as TimesNet_Model
 from models.Crossformer import Model as Crossformer_Model
+from models.DLinear import Model as DLinear_Model
 
 
 class Freeze_Backbone(nn.Module):
@@ -16,13 +17,14 @@ class Freeze_Backbone(nn.Module):
             "TimesNet": TimesNet_Model,
             "Autoformer": Autoformer_Model,
             "Crossformer": Crossformer_Model,
+            "DLinear": DLinear_Model,
         }
 
         self.freeze_model = self._build_freeze_model()
         # self._initialize_lazy_layers()
 
         checkpoint_path = os.path.join(
-            "/mnt/time-series/thongtx/imputation/checkpoints_imputation",
+            "/mnt/time-series/time-series/thongtx/imputation/checkpoints_imputation",
             args.setting,
             "checkpoint.pth",
         )

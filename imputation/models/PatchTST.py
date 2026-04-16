@@ -91,7 +91,11 @@ class Model(nn.Module):
                 configs.pred_len,
                 head_dropout=configs.dropout,
             )
-        elif self.task_name == "imputation" or self.task_name == "anomaly_detection":
+        elif (
+            self.task_name == "imputation"
+            or self.task_name == "anomaly_detection"
+            or self.task_name == "imputation_retrieval"
+        ):
             self.head = FlattenHead(
                 configs.enc_in,
                 self.head_nf,
@@ -239,7 +243,7 @@ class Model(nn.Module):
         ):
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.pred_len :, :]  # [B, L, D]
-        if self.task_name == "imputation":
+        if self.task_name == "imputation" or self.task_name == "imputation_retrieval":
             dec_out = self.imputation(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]
         if self.task_name == "anomaly_detection":

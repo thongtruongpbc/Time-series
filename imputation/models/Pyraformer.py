@@ -30,7 +30,11 @@ class Model(nn.Module):
             self.projection = nn.Linear(
                 (len(window_size) + 1) * self.d_model, self.pred_len * configs.enc_in
             )
-        elif self.task_name == "imputation" or self.task_name == "anomaly_detection":
+        elif (
+            self.task_name == "imputation"
+            or self.task_name == "anomaly_detection"
+            or self.task_name == "imputation_retrieval"
+        ):
             self.projection = nn.Linear(
                 (len(window_size) + 1) * self.d_model, configs.enc_in, bias=True
             )
@@ -95,7 +99,7 @@ class Model(nn.Module):
         if self.task_name == "short_term_forecast":
             dec_out = self.short_forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.pred_len :, :]  # [B, L, D]
-        if self.task_name == "imputation":
+        if self.task_name == "imputation" or self.task_name == "imputation_retrieval":
             dec_out = self.imputation(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]
         if self.task_name == "anomaly_detection":

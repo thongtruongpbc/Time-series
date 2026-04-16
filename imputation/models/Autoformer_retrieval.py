@@ -54,7 +54,7 @@ class Model(nn.Module):
         self.seq_len = configs.seq_len
         self.label_len = configs.label_len
         self.pred_len = configs.pred_len
-        self.top_k = configs.top_k
+        self.top_k = configs.k
         self.d_cond = 16
         self.null_ref_feature = nn.Parameter(torch.randn(1, 1, 1, self.top_k))
 
@@ -84,7 +84,7 @@ class Model(nn.Module):
         )
         self.ref_projection = nn.Linear(configs.enc_in, configs.d_model, bias=False)
         self.concat_projection = nn.Linear(
-            configs.top_k * configs.d_model, configs.d_model, bias=False
+            self.top_k * configs.d_model, configs.d_model, bias=False
         )
 
         # multihead self-attention
@@ -270,7 +270,7 @@ class Model(nn.Module):
             # dec_out = self.projection(enc_out)
             B, top_k, T, C = reference.shape
             reference = reference.view(B * top_k, T, C)
-            reference = self.ref_revin(reference, mode="norm")
+            reference = self.ref_revin(reference, mode="norm", mask=mask)
             # reference = self.ref_embedding(reference, x_mark_enc.repeat_interleave(top_k, dim=0))
             reference = reference.reshape(B, top_k, T, reference.shape[-1])
             reference = reference.reshape(B, top_k * T, reference.shape[-1])
@@ -283,7 +283,7 @@ class Model(nn.Module):
             concat_proj = self.concat_projection(ref_proj)
 
             # input
-            x_enc = self.revin(x_enc, mode="norm", mask=None)
+            x_enc = self.revin(x_enc, mode="norm", mask=mask)
             enc_out = self.enc_embedding(x_enc, x_mark_enc)
             # enc_out = self.enc_embedding(x_enc)
 
@@ -305,7 +305,7 @@ class Model(nn.Module):
             enc_out = self.freeze_model(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             enc_out = x_enc * mask + enc_out * (1 - mask)
 
-            enc_out = self.revin(enc_out, mode="norm", mask=None)
+            enc_out = self.revin(enc_out, mode="norm")
             reference = self.ref_revin(reference, mode="norm")
             gate_weight = self.gate(enc_out)
             fuse_x = gate_weight * enc_out + (1 - gate_weight) * reference
@@ -314,7 +314,7 @@ class Model(nn.Module):
             # ffn_x = self.ffn(fuse_x)
             # ffn_output = self.ffn_norm(ffn_x + fuse_x)
             output = fuse_x + self.projection_refine(fuse_x)
-            output = self.revin(output, mode="denorm", mask=None)
+            output = self.revin(output, mode="denorm")
 
             return output
 

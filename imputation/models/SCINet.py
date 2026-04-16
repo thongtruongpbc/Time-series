@@ -167,6 +167,9 @@ class Model(nn.Module):
             )  # [B,pred_len,C]
             dec_out = torch.cat([torch.zeros_like(x_enc), dec_out], dim=1)
             return dec_out  # [B, T, D]
+        if self.task_name == "imputation" or self.task_name == "imputation_retrieval":
+            dec_out = self.imputation(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
+            return dec_out  # [B, L, D]
         return None
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
@@ -201,6 +204,35 @@ class Model(nn.Module):
         dec_out = dec_out + (
             means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len + self.seq_len, 1)
         )
+        return dec_out
+
+    def imputation(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask):
+        means = torch.sum(x_enc * mask, dim=1, keepdim=True) / torch.sum(
+            mask, dim=1, keepdim=True
+        )
+        x_enc = x_enc - means
+        x_enc = x_enc.masked_fill(mask == 0, 0)
+
+        stdev = torch.sqrt(
+            torch.sum(x_enc * x_enc, dim=1, keepdim=True)
+            / torch.sum(mask, dim=1, keepdim=True)
+            + 1e-5
+        )
+        x_enc /= stdev
+
+        pe = self.get_position_encoding(x_enc)
+        if pe.shape[2] > x_enc.shape[2]:
+            x_enc += pe[:, :, :-1]
+        else:
+            x_enc += self.get_position_encoding(x_enc)
+
+        dec_out = self.sci_net_1(x_enc)
+        dec_out += x_enc
+        dec_out = self.projection_1(dec_out)
+
+        dec_out = dec_out * stdev
+        dec_out = dec_out + means
+
         return dec_out
 
     def get_position_encoding(self, x):

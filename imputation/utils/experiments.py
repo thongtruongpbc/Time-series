@@ -4,8 +4,6 @@ import numpy as np
 import torch
 import pygsheets
 
-# --- Data Transformation Layer (Single Responsibility) ---
-
 
 def to_python_safe(x):
     """
@@ -37,9 +35,6 @@ def to_python_safe(x):
     return x
 
 
-# --- Authentication Layer (Open/Closed Principle) ---
-
-
 def get_gspread_client():
     """
     Authorizes using OAuth2.
@@ -48,9 +43,6 @@ def get_gspread_client():
     """
     # pygsheets looks for 'client_secret.json' and stores credentials in a local file
     return pygsheets.authorize(client_secret="client_secret.json")
-
-
-# --- Storage Layer (Interface Segregation) ---
 
 
 def get_or_create_worksheet(client, spreadsheet_id, sheet_name):
@@ -68,7 +60,7 @@ def save_experiment_to_gsheet_oauth(
     args,
     metrics,
     spreadsheet_id="1k0e4gQpWVylg6NNedfhYp71rTvPoLvvxsFADsa2QW4U",
-    sheet_name="Total",
+    sheet_name="Total 16-3",
 ):
     """
     Saves experiment results to Google Sheets using pygsheets.

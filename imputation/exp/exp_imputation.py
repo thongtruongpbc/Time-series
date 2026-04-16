@@ -10,6 +10,7 @@ import os
 import time
 import warnings
 import numpy as np
+from tracking.tracking import MemoryCallback
 
 warnings.filterwarnings("ignore")
 
@@ -87,6 +88,12 @@ class Exp_Imputation(Exp_Basic):
         if not os.path.exists(path):
             os.makedirs(path)
 
+        mem_monitor = MemoryCallback(
+            ram_threshold=95.0,
+            vram_min_free_gb=2.0,
+            checkpoint_path=os.path.join(path, "emergency_checkpoint.pth"),
+        )
+
         time_now = time.time()
 
         train_steps = len(train_loader)
@@ -104,6 +111,11 @@ class Exp_Imputation(Exp_Basic):
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, index) in enumerate(
                 train_loader
             ):
+                if i % 200 == 0:
+                    mem_monitor.check_and_safe_exit(
+                        self.model, optimizer=model_optim, epoch=epoch, batch_idx=i
+                    )
+
                 iter_count += 1
                 model_optim.zero_grad()
 
@@ -199,8 +211,8 @@ class Exp_Imputation(Exp_Basic):
                 batch_x_mark = batch_x_mark.float().to(self.device)
 
                 # random mask
-                B, T, N = batch_x.shape
-                mask = torch.rand((B, T, N)).to(self.device)
+                B, T, C = batch_x.shape
+                mask = torch.rand((B, T, C)).to(self.device)
                 mask[mask <= self.args.mask_rate] = 0  # masked
                 mask[mask > self.args.mask_rate] = 1  # remained
                 inp = batch_x.masked_fill(mask == 0, 0)

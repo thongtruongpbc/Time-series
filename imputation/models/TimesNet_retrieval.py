@@ -71,10 +71,10 @@ class TimesBlock(nn.Module):
 
     def forward(self, x):
         B, T, N = x.size()
-        period_list, period_weight = FFT_for_Period(x, 5)  # self.k
+        period_list, period_weight = FFT_for_Period(x, 3)  # self.k
 
         res = []
-        for i in range(5):  # self.k
+        for i in range(3):  # self.k
             period = period_list[i]
             # padding
             if (self.seq_len + self.pred_len) % period != 0:
@@ -502,46 +502,43 @@ class Model(nn.Module):
             enc_out = self.freeze_model(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             enc_out = x_enc * mask + enc_out * (1 - mask)
 
-            enc_out = self.revin(enc_out, mode="norm", mask=None)
+            enc_out = self.revin(enc_out, mode="norm", mask=mask)
             reference = self.ref_revin(reference, mode="norm")
             gate_weight = self.gate(enc_out)
             fuse_x = gate_weight * enc_out + (1 - gate_weight) * reference
-            # fuse_x = self.layer_norm(fuse_x)
 
-            # ffn_x = self.ffn(fuse_x)
-            # ffn_output = self.ffn_norm(ffn_x + fuse_x)
             output = fuse_x + self.projection_refine(fuse_x)
-            output = self.revin(output, mode="denorm", mask=None)
+            output = self.revin(output, mode="denorm", mask=mask)
 
             return output
 
-        elif self.configs.ablation_arch == "backbone-retrieval + learnable fusing":
-            # reference
-            # dec_out = self.projection(enc_out)
-            B, top_k, T, C = reference.shape
-            reference = reference.mean(dim=1)
-            # input
-            x_enc = self.revin(x_enc, mode="norm", mask=None)
-            enc_out = self.enc_embedding(x_enc)
-            # enc_out = self.enc_embedding(x_enc)
-            for i in range(self.layer):
-                enc_out = self.layer_norm_1(self.model[i](enc_out))
+        # elif self.configs.ablation_arch == "backbone-retrieval + learnable fusing":
+        #     # reference
+        #     # dec_out = self.projection(enc_out)
+        #     B, top_k, T, C = reference.shape
+        #     reference = reference.mean(dim=1)
+        #     # input
+        #     x_enc = self.revin(x_enc, mode="norm", mask=None)
+        #     enc_out = self.enc_embedding(x_enc)
+        #     # enc_out = self.enc_embedding(x_enc)
+        #     for i in range(self.layer):
+        #         enc_out = self.layer_norm_1(self.model[i](enc_out))
 
-            enc_out = self.projection(enc_out)
-            enc_out = x_enc * mask + enc_out * (1 - mask)
+        #     enc_out = self.projection(enc_out)
+        #     enc_out = x_enc * mask + enc_out * (1 - mask)
 
-            enc_out = self.revin(enc_out, mode="norm", mask=None)
-            reference = self.ref_revin(reference, mode="norm")
-            gate_weight = self.gate(enc_out)
-            fuse_x = gate_weight * enc_out + (1 - gate_weight) * reference
-            # fuse_x = self.layer_norm(fuse_x)
+        #     enc_out = self.revin(enc_out, mode="norm", mask=None)
+        #     reference = self.ref_revin(reference, mode="norm")
+        #     gate_weight = self.gate(enc_out)
+        #     fuse_x = gate_weight * enc_out + (1 - gate_weight) * reference
+        #     # fuse_x = self.layer_norm(fuse_x)
 
-            # ffn_x = self.ffn(fuse_x)
-            # ffn_output = self.ffn_norm(ffn_x + fuse_x)
-            output = fuse_x + self.projection_refine(fuse_x)
-            output = self.revin(output, mode="denorm", mask=None)
+        #     # ffn_x = self.ffn(fuse_x)
+        #     # ffn_output = self.ffn_norm(ffn_x + fuse_x)
+        #     output = fuse_x + self.projection_refine(fuse_x)
+        #     output = self.revin(output, mode="denorm", mask=None)
 
-            return output
+        #     return output
 
     def anomaly_detection(self, x_enc):
         # Normalization from Non-stationary Transformer

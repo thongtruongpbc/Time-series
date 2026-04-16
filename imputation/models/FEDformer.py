@@ -139,7 +139,7 @@ class Model(nn.Module):
             projection=nn.Linear(configs.d_model, configs.c_out, bias=True),
         )
 
-        if self.task_name == "imputation":
+        if self.task_name == "imputation" or self.task_name == "imputation_retrieval":
             self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
         if self.task_name == "anomaly_detection":
             self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
@@ -207,7 +207,7 @@ class Model(nn.Module):
         ):
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.pred_len :, :]  # [B, L, D]
-        if self.task_name == "imputation":
+        if self.task_name == "imputation" or self.task_name == "imputation_retrieval":
             dec_out = self.imputation(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]
         if self.task_name == "anomaly_detection":
