@@ -22,7 +22,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from retriever.layers import dot_attention
+from imputation_retriever.layers import dot_attention
 from torch import Tensor
 from typing import Literal, Optional
 import tqdm

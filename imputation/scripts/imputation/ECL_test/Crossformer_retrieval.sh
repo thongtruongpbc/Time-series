@@ -1,6 +1,6 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 RUN_LIMIT="systemd-run --scope -p CPUQuota=90% -p CPUSchedulingPolicy=idle"
 
 # nohup ./Crossformer_retrieval.sh >> ../logs/Crossformer_retrieval.log 2>&1 &
@@ -55,7 +55,7 @@ do
                 --fuse_rate $fuse \
                 --learning_rate 0.001 \
                 --representation_mode 'mean_pooling' \
-                --retrieval_checkpoint_path "/mnt/time-series/time-series/thongtx/imputation/polyencoder_retriever/checkpoints_retriever/Transformer_ECL_mask_${rate}_custom_ftM_sl${len}_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
+                --retrieval_checkpoint_path "imputation/imputation_retriever/checkpoints_retriever/Transformer_ECL_mask_${rate}_custom_ftM_sl${len}_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
                 --checkpoints ./checkpoints_imputation_retrieval/
             done
         done

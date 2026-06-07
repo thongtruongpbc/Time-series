@@ -1,5 +1,5 @@
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 model_name=Nonstationary_Transformer
 model_emb=Nonstationary_Transformer
 

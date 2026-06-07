@@ -1,5 +1,5 @@
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 # nohup ./SCINet.sh > ../logs/SCINet_ECL.log 2>&1 &
 
 # SCINet

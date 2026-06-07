@@ -1,5 +1,5 @@
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation/retriever
+cd imputation/retriever
 model_name=Transformer
 model_emb=Transformer
 
@@ -17,12 +17,12 @@ do
       --ablation_arch "polyencoder-retrieval" \
       --is_training 1 \
       --root_path ./dataset/ETT-small/ \
-      --data_path ETTh2.csv \
-      --model_id "ETTh2_mask_$rate" \
+      --data_path ETTh1.csv \
+      --model_id "ETTh1_mask_$rate" \
       --mask_rate $rate \
       --model $model_name \
       --model_emb $model_emb \
-      --data ETTh2 \
+      --data ETTh1 \
       --features M \
       --seq_len $len \
       --label_len 0 \

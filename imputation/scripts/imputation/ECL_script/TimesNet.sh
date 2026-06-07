@@ -1,5 +1,5 @@
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 # nohup ./TimesNet.sh > ../logs/TimesNet_ECL.log 2>&1 &
 
 # TimesNet

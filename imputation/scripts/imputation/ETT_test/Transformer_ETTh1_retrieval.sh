@@ -1,5 +1,5 @@
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 model_emb=Transformer
 model_name=Transformer_retrieval
 # 0.25 0.375 0.5

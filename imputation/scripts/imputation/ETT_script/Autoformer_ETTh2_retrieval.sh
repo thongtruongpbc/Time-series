@@ -1,6 +1,6 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 
 # nohup ./Autoformer_ETTh2_retrieval.sh >> ../logs/Autoformer_ETTh2_retrieval.log 2>&1 &
 model_name=Autoformer_retrieval

@@ -1,5 +1,5 @@
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 
 # nohup ./RLinear_ETT.sh > ../logs/RLinear_ETT.log 2>&1 &
 

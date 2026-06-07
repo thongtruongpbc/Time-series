@@ -6,12 +6,12 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
-import retriever
+import imputation_retriever
 
 import torch
 import torch.backends
-from retriever.exp.exp_retriever import Exp_Retriever
-from retriever.visualization.Pearson import Retriever_visualization
+from imputation_retriever.exp.exp_retriever import Exp_Retriever
+from imputation_retriever.visualization.Pearson import Retriever_visualization
 from utils.print_args import print_args
 import random
 import numpy as np

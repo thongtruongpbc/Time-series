@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import warnings
 import os
-from retriever.data_provider.data_factory import data_provider
-from retriever.layers.Retrieval import RetrievalTool
+from imputation_retriever.data_provider.data_factory import data_provider
+from imputation_retriever.layers.Retrieval import RetrievalTool
 
 warnings.filterwarnings("ignore")
 

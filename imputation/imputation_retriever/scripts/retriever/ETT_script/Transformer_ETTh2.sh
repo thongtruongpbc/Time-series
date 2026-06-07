@@ -1,9 +1,9 @@
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation/retriever
+cd imputation/retriever
 model_name=Transformer
 model_emb=Transformer
 
-# nohup ./Transformer_ETTm2.sh > ../logs/Transformer_ETTm2.log 2>&1 &
+# nohup ./Transformer_ETTh1.sh > ../logs/Transformer_ETTh1.log 2>&1 &
 # delete job: pkill -9 -f run_retriever.py
 for rate in 0.125 0.25 0.375 0.5 # 0.25 0.375 0.5
 do
@@ -17,12 +17,12 @@ do
       --ablation_arch "polyencoder-retrieval" \
       --is_training 1 \
       --root_path ./dataset/ETT-small/ \
-      --data_path ETTm2.csv \
-      --model_id "ETTm2_mask_$rate" \
+      --data_path ETTh2.csv \
+      --model_id "ETTh2_mask_$rate" \
       --mask_rate $rate \
       --model $model_name \
       --model_emb $model_emb \
-      --data ETTm2 \
+      --data ETTh2 \
       --features M \
       --seq_len $len \
       --label_len 0 \

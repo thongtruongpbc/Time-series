@@ -1,6 +1,6 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 # nohup ./TimesNet_ETTm1_retrieval.sh >> ../logs/TimesNet_ETTm1_retrieval.log 2>&1 &
 model_name=TimesNet_retrieval
 model_emb=TimesNet

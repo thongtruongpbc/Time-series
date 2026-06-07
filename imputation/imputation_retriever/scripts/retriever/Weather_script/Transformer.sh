@@ -1,9 +1,9 @@
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation/retriever
+cd imputation/retriever
 model_name=Transformer
 model_emb=Transformer
 
-# nohup ./Transformer.sh > ../logs/Transformer_electricity.log 2>&1 &
+# nohup ./Transformer.sh > ../logs/Transformer_weather.log 2>&1 &
 # delete job: pkill -9 -f run_retriever.py
 for rate in 0.125 0.25 0.375 0.5 # 0.25 0.375 0.5
 do
@@ -14,9 +14,9 @@ do
     --sheet_name 'polyencoder_retrieval' \
     --ablation_arch "polyencoder-retrieval" \
     --is_training 1 \
-    --root_path ./dataset/electricity/ \
-    --data_path electricity.csv \
-    --model_id "ECL_mask_$rate" \
+    --root_path ./dataset/weather/ \
+    --data_path weather.csv \
+    --model_id "weather_mask_$rate" \
     --mask_rate $rate \
     --model $model_name \
     --model_emb $model_emb \
@@ -28,15 +28,16 @@ do
     --e_layers 2 \
     --d_layers 1 \
     --factor 3 \
-    --enc_in 321 \
-    --dec_in 321 \
-    --c_out 321 \
+    --enc_in 21 \
+    --dec_in 21 \
+    --c_out 21 \
     --batch_size 16 \
-    --d_model 16 \
-    --d_ff 64 \
+    --d_model 128 \
+    --d_ff 128 \
     --des 'Exp' \
     --itr 1 \
     --top_k 5 \
+    --topm 10 \
     --learning_rate 0.0001 \
     --checkpoints ./checkpoints_retriever/
 done

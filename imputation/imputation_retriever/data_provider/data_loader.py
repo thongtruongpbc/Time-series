@@ -4,7 +4,7 @@ import pandas as pd
 import glob
 import re
 import torch
-from retriever.utils.multivariate_stl import Multivariate_STL
+from imputation_retriever.utils.multivariate_stl import Multivariate_STL
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
 from utils.timefeatures import time_features

@@ -24,7 +24,7 @@ class Freeze_Backbone(nn.Module):
         # self._initialize_lazy_layers()
 
         checkpoint_path = os.path.join(
-            "/mnt/time-series/time-series/thongtx/imputation/checkpoints_imputation",
+            "imputation/checkpoints_imputation",
             args.setting,
             "checkpoint.pth",
         )

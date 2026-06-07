@@ -1,6 +1,6 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 
 # nohup ./RLinear_ETTh2_retrieval.sh > ../logs/RLinear_ETTh2_retrieval.log 2>&1 &
 
@@ -51,7 +51,7 @@ cd /mnt/time-series/time-series/thongtx/imputation
 #                   --fuse_rate $fuse \
 #                   --learning_rate 0.001 \
 #                   --representation_mode 'mean_pooling' \
-#                   --retrieval_checkpoint_path "/mnt/time-series/time-series/thongtx/imputation/polyencoder_retriever/checkpoints_retriever/Transformer_ETTh2_mask_${rate}_ETTh2_ftM_sl${len}_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
+#                   --retrieval_checkpoint_path "imputation/imputation_retriever/checkpoints_retriever/Transformer_ETTh2_mask_${rate}_ETTh2_ftM_sl${len}_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
 #                   --checkpoints ./checkpoints_imputation_retrieval/ \
 #                   --dropout 0.0
 #             done
@@ -109,14 +109,14 @@ do
                   --fuse_rate $fuse \
                   --learning_rate 0.001 \
                   --representation_mode 'mean_pooling' \
-                  --retrieval_checkpoint_path "/mnt/time-series/time-series/thongtx/imputation/polyencoder_retriever/checkpoints_retriever/Transformer_ETTh2_mask_${rate}_ETTh2_ftM_sl${len}_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
+                  --retrieval_checkpoint_path "imputation/imputation_retriever/checkpoints_retriever/Transformer_ETTh2_mask_${rate}_ETTh2_ftM_sl${len}_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
                   --checkpoints ./checkpoints_imputation_retrieval/
             done
         done
     done
 done
 
-# cd /mnt/time-series/time-series/thongtx/imputation
+# cd imputation
 # model_name=TimesNet_retrieval
 # model_emb=TimesNet
 
@@ -166,7 +166,7 @@ done
 #                     --fuse_rate $fuse \
 #                     --learning_rate 0.001 \
 #                     --representation_mode 'mean_pooling' \
-#                     --retrieval_checkpoint_path "/mnt/time-series/time-series/thongtx/imputation/polyencoder_retriever/checkpoints_retriever/Transformer_ETTh2_mask_${rate}_ETTh2_ftM_sl${len}_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
+#                     --retrieval_checkpoint_path "imputation/imputation_retriever/checkpoints_retriever/Transformer_ETTh2_mask_${rate}_ETTh2_ftM_sl${len}_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
 #                     --checkpoints ./checkpoints_imputation_retrieval/
 #             done
 #         done

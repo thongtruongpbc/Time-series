@@ -1,6 +1,6 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 # nohup ./Crossformer_retrieval.sh >> ../logs/weather/Crossformer_retrieval.log 2>&1 &
 model_name=Crossformer_retrieval
 model_emb=Crossformer

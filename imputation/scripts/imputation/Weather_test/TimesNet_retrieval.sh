@@ -1,6 +1,6 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 
 # nohup ./TimesNet_retrieval.sh > ../logs/TimesNet_weather_retrieval.log 2>&1 &
 model_name=TimesNet_retrieval
@@ -50,7 +50,7 @@ do
                 --k $k \
                 --fuse_rate $fuse \
                 --representation_mode 'mean_pooling' \
-                --retrieval_checkpoint_path "/mnt/time-series/time-series/thongtx/imputation/polyencoder_retriever/checkpoints_retriever/Transformer_weather_mask_${rate}_custom_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
+                --retrieval_checkpoint_path "imputation/imputation_retriever/checkpoints_retriever/Transformer_weather_mask_${rate}_custom_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
                 --checkpoints ./checkpoints_imputation_retrieval/
         done
     done

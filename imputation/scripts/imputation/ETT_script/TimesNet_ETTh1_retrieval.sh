@@ -1,6 +1,6 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=0
-cd /mnt/time-series/time-series/thongtx/imputation
+cd imputation
 
 # nohup ./TimesNet_ETTh1_retrieval.sh > ../logs/TimesNet_ETTh1_retrieval.log 2>&1 &
 model_name=TimesNet_retrieval
@@ -57,7 +57,7 @@ do
                     --fuse_rate $fuse \
                     --learning_rate 0.001 \
                     --representation_mode 'mean_pooling' \
-                    --retrieval_checkpoint_path "/mnt/time-series/time-series/thongtx/imputation/polyencoder_retriever/checkpoints_retriever/Transformer_ETTh1_mask_${rate}_ETTh1_ftM_sl${len}_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
+                    --retrieval_checkpoint_path "imputation/imputation_retriever/checkpoints_retriever/Transformer_ETTh1_mask_${rate}_ETTh1_ftM_sl${len}_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0/checkpoint.pth" \
                     --checkpoints ./checkpoints_imputation_retrieval/
             done
         done
