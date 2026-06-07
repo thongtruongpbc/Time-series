@@ -1,5 +1,4 @@
 repos:
-  # 1. Kiểm tra chuẩn Conventional Commits cho tin nhắn commit
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.1.0
     hooks:
@@ -7,18 +6,17 @@ repos:
         stages: [commit-msg]
         args: []
 
-  # 2. Các công cụ kiểm tra file vật lý
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
-      - id: trailing-whitespace    # Xóa khoảng trắng thừa cuối dòng
-      - id: end-of-file-fixer      # Đảm bảo file kết thúc bằng một dòng trống
-      - id: check-yaml             # Kiểm tra cú pháp file .yaml
-      - id: check-added-large-files # Chặn file > 5MB (tránh commit nhầm model .pth)
+      - id: trailing-whitespace    
+      - id: end-of-file-fixer      
+      - id: check-yaml             
+      - id: check-added-large-files 
         args: ['--maxkb=5000']
-      - id: check-case-conflict    # Chặn lỗi trùng tên file trên các HĐH khác nhau
+      - id: check-case-conflict    
 
-  # 3. Tự động format code theo chuẩn Black (giúp code sạch hơn)
+ 
   - repo: https://github.com/psf/black
     rev: 24.1.1
     hooks:
