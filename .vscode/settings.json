@@ -1,0 +1,4 @@
+{
+  "python.defaultInterpreterPath": "/home/cds/miniconda3/envs/thongtx310/bin/python",
+  "python.terminal.activateEnvInCurrentTerminal": true
+}

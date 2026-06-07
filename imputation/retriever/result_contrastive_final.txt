@@ -1,0 +1,183 @@
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0862, R@3: 0.2260, R@5: 0.3383, Loss: 3.2866
+------------------------------
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0862, R@3: 0.2260, R@5: 0.3383, Loss: 3.2866
+------------------------------
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0268, R@3: 0.0788, R@5: 0.1219, Loss: 4.4988
+------------------------------
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0778, R@3: 0.1644, R@5: 0.2415, Loss: 3.7935
+------------------------------
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0880, R@3: 0.1872, R@5: 0.2826, Loss: 3.7848
+------------------------------
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0836, R@3: 0.1783, R@5: 0.2643, Loss: 3.7643
+------------------------------
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0581, R@3: 0.1189, R@5: 0.1824, Loss: 3.8982
+------------------------------
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0553, R@3: 0.1477, R@5: 0.2249, Loss: 3.3832
+------------------------------
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0587, R@3: 0.1449, R@5: 0.2277, Loss: 3.6478
+------------------------------
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0646, R@3: 0.1501, R@5: 0.2280, Loss: 3.6232
+------------------------------
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.2607, R@3: 0.5218, R@5: 0.6844, Loss: 2.1924
+------------------------------
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.2013, R@3: 0.4175, R@5: 0.5622, Loss: 2.2875
+------------------------------
+Setting: Transformer_ETTh1_mask_0.25_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1861, R@3: 0.4606, R@5: 0.6468, Loss: 2.4687
+------------------------------
+Setting: Transformer_ETTh1_mask_0.375_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.4126, R@3: 0.7597, R@5: 0.9081, Loss: 1.5053
+------------------------------
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.2607, R@3: 0.5218, R@5: 0.6844, Loss: 2.1924
+------------------------------
+Setting: Transformer_ETTh1_mask_0.25_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.4448, R@3: 0.7642, R@5: 0.8968, Loss: 1.7072
+------------------------------
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.3305, R@3: 0.6395, R@5: 0.8008, Loss: 2.0261
+------------------------------
+Setting: Transformer_ETTh1_mask_0.375_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.4941, R@3: 0.8249, R@5: 0.9327, Loss: 1.4712
+------------------------------
+Setting: Transformer_ETTh1_mask_0.25_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.4448, R@3: 0.7642, R@5: 0.8968, Loss: 1.7072
+------------------------------
+Setting: Transformer_ETTh1_mask_0.375_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.4941, R@3: 0.8249, R@5: 0.9327, Loss: 1.4712
+------------------------------
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.6174, R@3: 0.9044, R@5: 0.9655, Loss: 1.2163
+------------------------------
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.6174, R@3: 0.9044, R@5: 0.9655, Loss: 1.2163
+------------------------------
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0715, R@3: 0.2058, R@5: 0.3263, Loss: 4.3969
+---
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df32_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1257, R@3: 0.3733, R@5: 0.6267, Loss: 0.1210
+---
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df32_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1257, R@3: 0.3736, R@5: 0.6267, Loss: 0.1211
+---
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df32_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1257, R@3: 0.3733, R@5: 0.6267, Loss: 0.1211
+---
+Setting: Transformer_ETTh1_mask_0.25_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df32_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1240, R@3: 0.3688, R@5: 0.6250, Loss: 0.2556
+---
+Setting: Transformer_ETTh1_mask_0.375_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df32_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1226, R@3: 0.3663, R@5: 0.6240, Loss: 0.1301
+---
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df32_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1260, R@3: 0.3740, R@5: 0.6219, Loss: 0.2529
+---
+Setting: Transformer_weather_mask_0.125_custom_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df32_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0627, R@3: 0.1841, R@5: 0.3033, Loss: 0.0467
+---
+Setting: Transformer_weather_mask_0.125_custom_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df32_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0624, R@3: 0.1949, R@5: 0.3220, Loss: 0.0283
+---
+Setting: Transformer_weather_mask_0.125_custom_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0625, R@3: 0.1901, R@5: 0.3154, Loss: 0.0001
+---
+Setting: Transformer_weather_mask_0.25_custom_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0626, R@3: 0.1894, R@5: 0.3150, Loss: 0.0003
+---
+Setting: Transformer_weather_mask_0.375_custom_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0625, R@3: 0.1949, R@5: 0.3178, Loss: 0.0002
+---
+Setting: Transformer_weather_mask_0.5_custom_ftM_sl96_ll0_pl0_dm128_nh8_el2_dl1_df128_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.0625, R@3: 0.1918, R@5: 0.3187, Loss: 0.0005
+---
+Setting: Transformer_ECL_mask_0.125_custom_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.3251, R@3: 0.7464, R@5: 0.9011, Loss: 1.8852
+---
+Setting: Transformer_ECL_mask_0.25_custom_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.3040, R@3: 0.7102, R@5: 0.9021, Loss: 1.9664
+---
+Setting: Transformer_ECL_mask_0.375_custom_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.2314, R@3: 0.7537, R@5: 0.9041, Loss: 1.9257
+---
+Setting: Transformer_ECL_mask_0.5_custom_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.2349, R@3: 0.8041, R@5: 0.9491, Loss: 1.8232
+---
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1267, R@3: 0.3743, R@5: 0.6177, Loss: 2.0745
+---
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1267, R@3: 0.3743, R@5: 0.6177, Loss: 2.0745
+---
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1451, R@3: 0.4110, R@5: 0.6659, Loss: 2.0773
+---
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl192_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1395, R@3: 0.3979, R@5: 0.6503, Loss: 2.0743
+---
+Setting: Transformer_ETTh2_mask_0.125_ETTh2_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1610, R@3: 0.4536, R@5: 0.7008, Loss: 2.0421
+---
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl336_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1354, R@3: 0.3972, R@5: 0.6600, Loss: 2.0864
+---
+Setting: Transformer_ETTh2_mask_0.125_ETTh2_ftM_sl192_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1537, R@3: 0.4228, R@5: 0.6724, Loss: 2.0578
+---
+Setting: Transformer_ETTm1_mask_0.125_ETTm1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.2366, R@3: 0.6045, R@5: 0.8330, Loss: 1.9235
+---
+Setting: Transformer_ETTh1_mask_0.125_ETTh1_ftM_sl720_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1323, R@3: 0.3698, R@5: 0.6326, Loss: 2.0793
+---
+Setting: Transformer_ETTh1_mask_0.25_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1427, R@3: 0.4252, R@5: 0.6690, Loss: 2.0839
+---
+Setting: Transformer_ETTh1_mask_0.25_ETTh1_ftM_sl192_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1454, R@3: 0.4172, R@5: 0.6513, Loss: 2.0698
+---
+Setting: Transformer_ETTh1_mask_0.25_ETTh1_ftM_sl336_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1257, R@3: 0.3819, R@5: 0.6184, Loss: 2.0922
+---
+Setting: Transformer_ETTh1_mask_0.25_ETTh1_ftM_sl720_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1285, R@3: 0.3722, R@5: 0.6295, Loss: 2.0843
+---
+Setting: Transformer_ETTh1_mask_0.375_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1278, R@3: 0.3909, R@5: 0.6451, Loss: 2.0862
+---
+Setting: Transformer_ETTh1_mask_0.375_ETTh1_ftM_sl192_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1395, R@3: 0.4062, R@5: 0.6534, Loss: 2.0795
+---
+Setting: Transformer_ETTh1_mask_0.375_ETTh1_ftM_sl336_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1202, R@3: 0.3736, R@5: 0.6160, Loss: 2.0890
+---
+Setting: Transformer_ETTh1_mask_0.375_ETTh1_ftM_sl720_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1243, R@3: 0.3764, R@5: 0.6267, Loss: 2.0780
+---
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl96_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1409, R@3: 0.3961, R@5: 0.6575, Loss: 2.0736
+---
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl192_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1375, R@3: 0.3954, R@5: 0.6416, Loss: 2.0885
+---
+Setting: Transformer_ETTh2_mask_0.125_ETTh2_ftM_sl336_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1302, R@3: 0.3951, R@5: 0.6461, Loss: 2.0739
+---
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl336_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1243, R@3: 0.3691, R@5: 0.6226, Loss: 2.0826
+---
+Setting: Transformer_ETTh1_mask_0.5_ETTh1_ftM_sl720_ll0_pl0_dm16_nh8_el2_dl1_df64_expand2_dc4_fc3_ebtimeF_dtTrue_Exp_0
+R@1: 0.1260, R@3: 0.3695, R@5: 0.6208, Loss: 2.0766
+---
