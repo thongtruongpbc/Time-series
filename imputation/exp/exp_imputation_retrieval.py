@@ -97,7 +97,7 @@ class Exp_Imputation_retrieval(Exp_Basic):
         return model
 
     def _build_model_emb(self):
-        poly_file_path = "/mnt/time-series/time-series/thongtx/imputation/polyencoder_retriever/models/Encoder.py"
+        poly_file_path = "retriever/models/Encoder.py"
         PolyModelClass = load_poly_model_class(poly_file_path)
         model_emb = PolyModelClass(self.args_emb).float()
 
