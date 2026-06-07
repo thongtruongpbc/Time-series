@@ -7,7 +7,7 @@
 ALER-TI is **model-agnostic** and can be integrated with any imputation backbone through a lightweight adapter without modifying its internal design.
 
 <p align="center">
-  <img src="figures/overview.png" width="800"/>
+  <img src="overview.png" width="800"/>
 </p>
 
 ---
